@@ -36,10 +36,18 @@ const DashboardLayout = ({ children, title, roleLabel, roleColor = 'bg-primary' 
         </div>
       </header>
       
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 flex-1">
         <h2 className="text-3xl font-display font-bold mb-6">{title}</h2>
         {children}
       </main>
+
+      <footer className="border-t border-border bg-card py-4">
+        <div className="container mx-auto px-4 text-center">
+          <p className="text-sm text-muted-foreground">
+            Powered By <span className="font-semibold text-foreground">INMATION.AI</span>
+          </p>
+        </div>
+      </footer>
     </div>
   );
 };
