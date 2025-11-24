@@ -683,6 +683,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_view_task: {
+        Args: { _task_id: string; _user_id: string }
+        Returns: boolean
+      }
       get_user_workspaces: { Args: { _user_id: string }; Returns: string[] }
       has_role: {
         Args: {
