@@ -19,31 +19,14 @@ export const useUserRole = () => {
   return useQuery({
     queryKey: ['userRole', user?.id],
     queryFn: async () => {
-      if (!user) {
-        console.log('useUserRole: No user found');
-        return null;
-      }
+      if (!user) return null;
 
-      console.log('useUserRole: Fetching roles for user:', {
-        id: user.id,
-        email: user.email
-      });
-      
       const { data, error } = await supabase
         .from('user_roles')
         .select('*')
         .eq('user_id', user.id);
 
-      if (error) {
-        console.error('useUserRole: Error fetching user roles:', error);
-        throw error;
-      }
-      
-      console.log('useUserRole: Roles fetched successfully:', data);
-      
-      if (!data || data.length === 0) {
-        console.warn('useUserRole: No roles found for user', user.id);
-      }
+      if (error) throw error;
       
       return data as UserRole[];
     },

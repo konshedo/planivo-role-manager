@@ -19,7 +19,7 @@ const FacilitySupervisorDashboard = () => {
         .select('*')
         .eq('user_id', user?.id)
         .eq('role', 'facility_supervisor')
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },

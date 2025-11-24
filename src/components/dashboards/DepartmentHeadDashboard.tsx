@@ -37,7 +37,7 @@ const DepartmentHeadDashboard = () => {
         .select('*')
         .eq('user_id', user?.id)
         .eq('role', 'department_head')
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },

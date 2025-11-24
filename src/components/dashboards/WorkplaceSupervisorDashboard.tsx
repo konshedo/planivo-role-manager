@@ -19,7 +19,7 @@ const WorkplaceSupervisorDashboard = () => {
         .select('*')
         .eq('user_id', user?.id)
         .eq('role', 'workplace_supervisor')
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },

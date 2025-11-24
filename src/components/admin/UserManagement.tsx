@@ -188,8 +188,6 @@ const UserManagement = () => {
       facilityId?: string; 
       departmentId?: string; 
     }) => {
-      console.log('Adding role:', { userId, role, workspaceId, facilityId, departmentId });
-      
       const { data, error } = await supabase
         .from('user_roles')
         .insert({
@@ -201,12 +199,8 @@ const UserManagement = () => {
         })
         .select();
 
-      if (error) {
-        console.error('Error adding role:', error);
-        throw error;
-      }
+      if (error) throw error;
       
-      console.log('Role added successfully:', data);
       return data;
     },
     onSuccess: async () => {
