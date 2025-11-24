@@ -71,15 +71,31 @@ serve(async (req) => {
     } else {
       const existingAuthUser = users.find(u => u.email === email);
       if (existingAuthUser) {
-        console.log(`Deleting existing auth user: ${existingAuthUser.id}`);
+        console.log(`Cleaning up existing user: ${existingAuthUser.id}`);
+        
+        // First, delete all database records for this user
+        // Delete user roles
+        await supabaseClient
+          .from('user_roles')
+          .delete()
+          .eq('user_id', existingAuthUser.id);
+        
+        // Delete profile
+        await supabaseClient
+          .from('profiles')
+          .delete()
+          .eq('id', existingAuthUser.id);
+        
+        // Now delete the auth user
         const { error: deleteError } = await supabaseClient.auth.admin.deleteUser(existingAuthUser.id);
         if (deleteError) {
-          console.error("Error deleting existing user:", deleteError);
+          console.error("Error deleting existing auth user:", deleteError);
           return new Response(
             JSON.stringify({ error: "Failed to clean up existing user" }),
             { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
+        console.log(`Successfully deleted existing user: ${existingAuthUser.id}`);
       }
     }
 
