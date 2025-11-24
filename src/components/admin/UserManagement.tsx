@@ -28,6 +28,7 @@ const UserManagement = () => {
   const [role, setRole] = useState<string>('general_admin');
   const [workspaceId, setWorkspaceId] = useState<string>('');
   const [filterWorkspace, setFilterWorkspace] = useState<string>('all');
+  const [bulkCreateOpen, setBulkCreateOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: workspaces } = useQuery({
@@ -181,7 +182,7 @@ const UserManagement = () => {
                   <Label htmlFor="role">Role</Label>
                   <Select value={role} onValueChange={setRole}>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select a role" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="super_admin">Super Admin</SelectItem>
@@ -226,7 +227,7 @@ const UserManagement = () => {
             <Label className="text-sm">Filter by Workspace:</Label>
             <Select value={filterWorkspace} onValueChange={setFilterWorkspace}>
               <SelectTrigger className="w-64">
-                <SelectValue />
+                <SelectValue placeholder="Select workspace" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Workspaces</SelectItem>
