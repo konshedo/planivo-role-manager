@@ -29,7 +29,7 @@ const AccessManagement = () => {
   const queryClient = useQueryClient();
 
   // Fetch workspaces with full hierarchy
-  const { data: organizationData } = useQuery({
+  const { data: organizationData, isLoading, isError, error } = useQuery({
     queryKey: ['organization-hierarchy'],
     queryFn: async () => {
       const { data: workspaces, error: wsError } = await supabase
@@ -294,136 +294,152 @@ const AccessManagement = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Hierarchy Rules Info */}
-          <div className="mb-6 p-4 rounded-lg bg-primary/5 border border-primary/20">
-            <h4 className="font-semibold mb-2">Assignment Rules:</h4>
-            <ul className="space-y-1 text-sm text-muted-foreground">
-              <li>✓ <strong>Department Heads</strong> → Assigned to <strong>Main Departments</strong> (e.g., Surgery, Emergency)</li>
-              <li>✓ <strong>Staff Members</strong> → Assigned to <strong>Subdepartments</strong> (e.g., General Surgery, Trauma Unit)</li>
-              <li>✓ Department Heads manage their team within their department category</li>
-            </ul>
-          </div>
-          
-          <div className="space-y-6">
-            {/* Hierarchy Selection */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>1. Select Workspace</Label>
-                <Select value={selectedWorkspace} onValueChange={(val) => {
-                  setSelectedWorkspace(val);
-                  setSelectedFacility('');
-                  setSelectedDepartment('');
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose workspace..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {organizationData?.map((workspace) => (
-                      <SelectItem key={workspace.id} value={workspace.id}>
-                        {workspace.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          {isLoading ? (
+            <div className="text-center py-12">
+              <Loader2 className="h-8 w-8 mx-auto mb-4 animate-spin text-primary" />
+              <p className="text-muted-foreground">Loading organizational structure...</p>
+            </div>
+          ) : isError ? (
+            <div className="text-center py-8 text-destructive">
+              <p>Error loading organization: {error?.message}</p>
+            </div>
+          ) : !organizationData || organizationData.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No workspaces found. Create a workspace first in the Workspaces tab.</p>
+            </div>
+          ) : (
+            <>
+              {/* Hierarchy Rules Info */}
+              <div className="mb-6 p-4 rounded-lg bg-primary/5 border border-primary/20">
+                <h4 className="font-semibold mb-2">Assignment Rules:</h4>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  <li>✓ <strong>Department Heads</strong> → Assigned to <strong>Main Departments</strong> (e.g., Surgery, Emergency)</li>
+                  <li>✓ <strong>Staff Members</strong> → Assigned to <strong>Subdepartments</strong> (e.g., General Surgery, Trauma Unit)</li>
+                  <li>✓ Department Heads manage their team within their department category</li>
+                </ul>
               </div>
-
-              {selectedWorkspace && (
-                <div className="space-y-2">
-                  <Label>2. Select Facility</Label>
-                  <Select value={selectedFacility} onValueChange={(val) => {
-                    setSelectedFacility(val);
-                    setSelectedDepartment('');
-                  }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose facility..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {facilities.map((facility: any) => (
-                        <SelectItem key={facility.id} value={facility.id}>
-                          {facility.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {selectedFacility && (
-                <>
+              
+              <div className="space-y-6">
+                {/* Hierarchy Selection */}
+                <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label>3. Filter by Category (Optional)</Label>
-                    <Select value={selectedCategory} onValueChange={(val) => {
-                      setSelectedCategory(val);
+                    <Label>1. Select Workspace</Label>
+                    <Select value={selectedWorkspace} onValueChange={(val) => {
+                      setSelectedWorkspace(val);
+                      setSelectedFacility('');
                       setSelectedDepartment('');
                     }}>
                       <SelectTrigger>
-                        <SelectValue placeholder="All categories..." />
+                        <SelectValue placeholder="Choose workspace..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Categories</SelectItem>
-                        {categories.map((category: string) => (
-                          <SelectItem key={category} value={category}>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="capitalize">{category}</Badge>
-                            </div>
+                        {organizationData?.map((workspace) => (
+                          <SelectItem key={workspace.id} value={workspace.id}>
+                            {workspace.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>4. Select Sub-Department (Staff Assignment)</Label>
-                    <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose subdepartment for staff..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {subdepartmentsOnly.length > 0 ? (
-                          subdepartmentsOnly.map((dept: any) => (
-                            <SelectItem key={dept.id} value={dept.id}>
-                              <div className="flex items-center justify-between w-full">
-                                <span>
-                                  ↳ {dept.name}
-                                  <span className="text-xs text-muted-foreground ml-1">({dept.parentName})</span>
-                                </span>
-                                <div className="flex items-center gap-1">
-                                  {dept.category && (
-                                    <Badge variant="secondary" className="text-xs capitalize mr-1">
-                                      {dept.category}
-                                    </Badge>
-                                  )}
-                                  <Badge variant="outline" className="text-xs">
-                                    {dept.staff_count} staff
-                                  </Badge>
-                                </div>
-                              </div>
+                  {selectedWorkspace && (
+                    <div className="space-y-2">
+                      <Label>2. Select Facility</Label>
+                      <Select value={selectedFacility} onValueChange={(val) => {
+                        setSelectedFacility(val);
+                        setSelectedDepartment('');
+                      }}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose facility..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {facilities.map((facility: any) => (
+                            <SelectItem key={facility.id} value={facility.id}>
+                              {facility.name}
                             </SelectItem>
-                          ))
-                        ) : (
-                          <div className="px-2 py-4 text-sm text-muted-foreground text-center">
-                            No subdepartments available. Create subdepartments first.
-                          </div>
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Staff can only be assigned to subdepartments, not main departments
-                    </p>
-                  </div>
-                </>
-              )}
-
-              {selectedDept && (
-                <div className="p-4 rounded-lg bg-muted/50 border">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">Department Head(s):</span>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                    {selectedDept.department_heads && selectedDept.department_heads.length > 0 ? (
+                  )}
+
+                  {selectedFacility && (
+                    <>
                       <div className="space-y-2">
-                        {selectedDept.department_heads.map((head: any) => (
+                        <Label>3. Filter by Category (Optional)</Label>
+                        <Select value={selectedCategory} onValueChange={(val) => {
+                          setSelectedCategory(val);
+                          setSelectedDepartment('');
+                        }}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="All categories..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Categories</SelectItem>
+                            {categories.map((category: string) => (
+                              <SelectItem key={category} value={category}>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="capitalize">{category}</Badge>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>4. Select Sub-Department (Staff Assignment)</Label>
+                        <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choose subdepartment for staff..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {subdepartmentsOnly.length > 0 ? (
+                              subdepartmentsOnly.map((dept: any) => (
+                                <SelectItem key={dept.id} value={dept.id}>
+                                  <div className="flex items-center justify-between w-full">
+                                    <span>
+                                      ↳ {dept.name}
+                                      <span className="text-xs text-muted-foreground ml-1">({dept.parentName})</span>
+                                    </span>
+                                    <div className="flex items-center gap-1">
+                                      {dept.category && (
+                                        <Badge variant="secondary" className="text-xs capitalize mr-1">
+                                          {dept.category}
+                                        </Badge>
+                                      )}
+                                      <Badge variant="outline" className="text-xs">
+                                        {dept.staff_count} staff
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                                No subdepartments available. Create subdepartments first.
+                              </div>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Staff can only be assigned to subdepartments, not main departments
+                        </p>
+                      </div>
+                    </>
+                  )}
+
+                  {selectedDept && (
+                    <div className="p-4 rounded-lg bg-muted/50 border">
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">Department Head(s):</span>
+                        </div>
+                        {selectedDept.department_heads && selectedDept.department_heads.length > 0 ? (
+                          <div className="space-y-2">
+                            {selectedDept.department_heads.map((head: any) => (
                           <div key={head.id} className="flex items-center justify-between p-2 bg-background rounded">
                             <div>
                               <p className="font-medium text-sm">{head.full_name}</p>
@@ -691,6 +707,8 @@ const AccessManagement = () => {
           )}
         </CardContent>
       </Card>
+            </>
+          )}
     </div>
   );
 };

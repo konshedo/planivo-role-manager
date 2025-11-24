@@ -37,7 +37,7 @@ const FacilityUserManagement = () => {
   const [role, setRole] = useState<string>('staff');
   const queryClient = useQueryClient();
 
-  const { data: workspaces } = useQuery({
+  const { data: workspaces, isLoading, isError, error } = useQuery({
     queryKey: ['workspaces-with-facilities'],
     queryFn: async () => {
       const { data: workspacesData, error: workspacesError } = await supabase
@@ -325,7 +325,15 @@ const FacilityUserManagement = () => {
           <CardDescription>View workspaces, facilities, and their users</CardDescription>
         </CardHeader>
         <CardContent>
-          {!workspaces || workspaces.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>Loading organizational structure...</p>
+            </div>
+          ) : isError ? (
+            <div className="text-center py-8 text-destructive">
+              <p>Error loading data: {error?.message}</p>
+            </div>
+          ) : !workspaces || workspaces.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No workspaces found</p>
