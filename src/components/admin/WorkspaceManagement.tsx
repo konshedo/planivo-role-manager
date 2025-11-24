@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 
 const workspaceSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name too long'),
@@ -31,6 +32,27 @@ const WorkspaceManagement = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [maxVacationSplits, setMaxVacationSplits] = useState(6);
   const queryClient = useQueryClient();
+
+  // Real-time subscriptions for live updates
+  useRealtimeSubscription({
+    table: 'workspaces',
+    invalidateQueries: ['workspaces'],
+  });
+
+  useRealtimeSubscription({
+    table: 'facilities',
+    invalidateQueries: ['facilities'],
+  });
+
+  useRealtimeSubscription({
+    table: 'workspace_categories',
+    invalidateQueries: ['workspace-categories'],
+  });
+
+  useRealtimeSubscription({
+    table: 'workspace_departments',
+    invalidateQueries: ['workspace-departments'],
+  });
 
   const { data: workspaces, isLoading } = useQuery({
     queryKey: ['workspaces'],

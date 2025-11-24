@@ -14,6 +14,7 @@ import { format } from 'date-fns';
 import { CalendarIcon, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 
 interface TaskManagerProps {
   scopeType: 'workspace' | 'facility' | 'department';
@@ -28,6 +29,17 @@ const TaskManager = ({ scopeType, scopeId }: TaskManagerProps) => {
   const [dueDate, setDueDate] = useState<Date>();
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [selectedStaff, setSelectedStaff] = useState<string[]>([]);
+
+  // Real-time subscriptions for live updates
+  useRealtimeSubscription({
+    table: 'tasks',
+    invalidateQueries: ['tasks', 'available-staff'],
+  });
+
+  useRealtimeSubscription({
+    table: 'task_assignments',
+    invalidateQueries: ['tasks'],
+  });
 
   const { data: availableStaff } = useQuery({
     queryKey: ['available-staff', scopeType, scopeId],
