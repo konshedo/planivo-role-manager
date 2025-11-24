@@ -8,7 +8,7 @@ const corsHeaders = {
 
 interface BulkCreateStaffRequest {
   emails: string[];
-  workspaceId: string;
+  departmentId: string;
 }
 
 serve(async (req) => {
@@ -41,26 +41,47 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    // Verify user is super_admin
-    const { data: roles } = await supabaseClient
+    // Verify user has appropriate role (super_admin, general_admin, or department_head)
+    const { data: userRoles } = await supabaseClient
       .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .single();
+      .select('role, department_id')
+      .eq('user_id', user.id);
 
-    if (roles?.role !== 'super_admin') {
-      throw new Error('Only super admins can perform bulk staff creation');
+    if (!userRoles || userRoles.length === 0) {
+      throw new Error('User has no roles assigned');
     }
 
-    const { emails, workspaceId }: BulkCreateStaffRequest = await req.json();
+    const { emails, departmentId }: BulkCreateStaffRequest = await req.json();
 
     if (!emails || !Array.isArray(emails) || emails.length === 0) {
       throw new Error('Invalid emails array');
     }
 
-    if (!workspaceId) {
-      throw new Error('Workspace ID is required');
+    if (!departmentId) {
+      throw new Error('Department ID is required');
     }
+
+    // Get department details with facility and workspace info
+    const { data: department, error: deptError } = await supabaseClient
+      .from('departments')
+      .select('*, facilities(id, workspace_id)')
+      .eq('id', departmentId)
+      .single();
+
+    if (deptError || !department) {
+      throw new Error('Department not found');
+    }
+
+    // Check authorization - must be super_admin, general_admin, or department_head of this dept
+    const isSuperAdmin = userRoles.some(r => r.role === 'super_admin');
+    const isGeneralAdmin = userRoles.some(r => r.role === 'general_admin');
+    const isDeptHead = userRoles.some(r => r.role === 'department_head' && r.department_id === departmentId);
+
+    if (!isSuperAdmin && !isGeneralAdmin && !isDeptHead) {
+      throw new Error('Insufficient permissions to create staff for this department');
+    }
+
+    console.log(`Creating staff for department: ${department.name}, workspace: ${department.facilities.workspace_id}`);
 
     const results = {
       created: 0,
@@ -70,24 +91,28 @@ serve(async (req) => {
 
     for (const email of emails) {
       try {
-        // Create user with default password
+        // Create user with default password 1234
         const { data: newUser, error: createError } = await supabaseClient.auth.admin.createUser({
           email: email.trim(),
-          password: '123456',
+          password: '1234',
           email_confirm: true,
         });
 
         if (createError) {
           results.failed++;
           results.errors.push(`${email}: ${createError.message}`);
+          console.error(`Failed to create user ${email}:`, createError);
           continue;
         }
 
         if (!newUser.user) {
           results.failed++;
           results.errors.push(`${email}: Failed to create user`);
+          console.error(`No user object returned for ${email}`);
           continue;
         }
+
+        console.log(`Created auth user for ${email}: ${newUser.user.id}`);
 
         // Create profile with force_password_change flag
         const { error: profileError } = await supabaseClient
@@ -104,17 +129,22 @@ serve(async (req) => {
           // Rollback: delete the auth user
           await supabaseClient.auth.admin.deleteUser(newUser.user.id);
           results.failed++;
-          results.errors.push(`${email}: ${profileError.message}`);
+          results.errors.push(`${email}: Profile creation failed - ${profileError.message}`);
+          console.error(`Failed to create profile for ${email}:`, profileError);
           continue;
         }
 
-        // Create user role as staff in the workspace
+        console.log(`Created profile for ${email}`);
+
+        // Create user role as staff in the department
         const { error: roleError } = await supabaseClient
           .from('user_roles')
           .insert({
             user_id: newUser.user.id,
             role: 'staff',
-            workspace_id: workspaceId,
+            workspace_id: department.facilities.workspace_id,
+            facility_id: department.facility_id,
+            department_id: departmentId,
             created_by: user.id,
           });
 
@@ -123,17 +153,22 @@ serve(async (req) => {
           await supabaseClient.from('profiles').delete().eq('id', newUser.user.id);
           await supabaseClient.auth.admin.deleteUser(newUser.user.id);
           results.failed++;
-          results.errors.push(`${email}: ${roleError.message}`);
+          results.errors.push(`${email}: Role assignment failed - ${roleError.message}`);
+          console.error(`Failed to create role for ${email}:`, roleError);
           continue;
         }
 
+        console.log(`Assigned staff role to ${email} in department ${departmentId}`);
         results.created++;
       } catch (error) {
         results.failed++;
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         results.errors.push(`${email}: ${errorMessage}`);
+        console.error(`Error processing ${email}:`, error);
       }
     }
+
+    console.log(`Bulk creation complete. Created: ${results.created}, Failed: ${results.failed}`);
 
     return new Response(
       JSON.stringify(results),
@@ -144,6 +179,7 @@ serve(async (req) => {
     );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Bulk create staff error:', error);
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { 

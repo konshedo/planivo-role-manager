@@ -5,33 +5,108 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { UserPlus, Loader2 } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
+import { UserPlus, Loader2, Building2, Users, ChevronRight, User } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 const AccessManagement = () => {
-  const [emails, setEmails] = useState('');
   const [selectedWorkspace, setSelectedWorkspace] = useState('');
+  const [selectedFacility, setSelectedFacility] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [emails, setEmails] = useState('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: workspaces } = useQuery({
-    queryKey: ['workspaces'],
+  // Fetch workspaces with full hierarchy
+  const { data: organizationData } = useQuery({
+    queryKey: ['organization-hierarchy'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: workspaces, error: wsError } = await supabase
         .from('workspaces')
         .select('*')
         .order('name');
-      if (error) throw error;
-      return data;
+      
+      if (wsError) throw wsError;
+
+      const hierarchyData = await Promise.all(
+        workspaces.map(async (workspace) => {
+          const { data: facilities, error: facilityError } = await supabase
+            .from('facilities')
+            .select('*')
+            .eq('workspace_id', workspace.id)
+            .order('name');
+          
+          if (facilityError) throw facilityError;
+
+          const facilitiesWithDepts = await Promise.all(
+            facilities.map(async (facility) => {
+              const { data: departments, error: deptError } = await supabase
+                .from('departments')
+                .select('*')
+                .eq('facility_id', facility.id)
+                .order('name');
+              
+              if (deptError) throw deptError;
+
+              const deptsWithHeads = await Promise.all(
+                departments.map(async (dept) => {
+                  const { data: deptHeads, error: headError } = await supabase
+                    .from('user_roles')
+                    .select('*, profiles(id, full_name, email)')
+                    .eq('department_id', dept.id)
+                    .eq('role', 'department_head');
+                  
+                  if (headError) throw headError;
+
+                  // Count staff in this department
+                  const { count: staffCount } = await supabase
+                    .from('user_roles')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('department_id', dept.id)
+                    .eq('role', 'staff');
+
+                  return {
+                    ...dept,
+                    department_heads: deptHeads.map((dh: any) => dh.profiles),
+                    staff_count: staffCount || 0,
+                  };
+                })
+              );
+
+              return {
+                ...facility,
+                departments: deptsWithHeads,
+              };
+            })
+          );
+
+          return {
+            ...workspace,
+            facilities: facilitiesWithDepts,
+          };
+        })
+      );
+
+      return hierarchyData;
     },
   });
 
+  // Get filtered facilities based on workspace
+  const facilities = organizationData?.find(w => w.id === selectedWorkspace)?.facilities || [];
+  
+  // Get filtered departments based on facility
+  const departments = facilities.find(f => f.id === selectedFacility)?.departments || [];
+  
+  // Get selected department details
+  const selectedDept = departments.find(d => d.id === selectedDepartment);
+
   const createStaffMutation = useMutation({
-    mutationFn: async ({ emails, workspaceId }: { emails: string[]; workspaceId: string }) => {
+    mutationFn: async ({ emails, departmentId }: { emails: string[]; departmentId: string }) => {
       const { data, error } = await supabase.functions.invoke('bulk-create-staff', {
-        body: { emails, workspaceId },
+        body: { emails, departmentId },
       });
 
       if (error) throw error;
@@ -43,7 +118,7 @@ const AccessManagement = () => {
         description: `${data.created} staff user(s) created successfully. Default password: 1234`,
       });
       setEmails('');
-      setSelectedWorkspace('');
+      queryClient.invalidateQueries({ queryKey: ['organization-hierarchy'] });
       queryClient.invalidateQueries({ queryKey: ['totalUsers'] });
     },
     onError: (error: Error) => {
@@ -56,10 +131,10 @@ const AccessManagement = () => {
   });
 
   const handleSubmit = () => {
-    if (!emails.trim() || !selectedWorkspace) {
+    if (!emails.trim() || !selectedDepartment) {
       toast({
         title: 'Missing Information',
-        description: 'Please enter email addresses and select a workspace',
+        description: 'Please select a department and enter email addresses',
         variant: 'destructive',
       });
       return;
@@ -81,65 +156,237 @@ const AccessManagement = () => {
 
     createStaffMutation.mutate({
       emails: emailList,
-      workspaceId: selectedWorkspace,
+      departmentId: selectedDepartment,
     });
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <UserPlus className="h-5 w-5" />
-          Access Management - Bulk Staff Creation
-        </CardTitle>
-        <CardDescription>
-          Add multiple staff users to a workspace. Each user will receive default password: 1234 and must change it on first login.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="workspace">Select Workspace</Label>
-          <Select value={selectedWorkspace} onValueChange={setSelectedWorkspace}>
-            <SelectTrigger>
-              <SelectValue placeholder="Choose workspace..." />
-            </SelectTrigger>
-            <SelectContent>
-              {workspaces?.map((workspace) => (
-                <SelectItem key={workspace.id} value={workspace.id}>
-                  {workspace.name}
-                </SelectItem>
+    <div className="space-y-6">
+      <Card className="border-2">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Access Management
+          </CardTitle>
+          <CardDescription>
+            Manage user access across the organizational hierarchy
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            {/* Hierarchy Selection */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>1. Select Workspace</Label>
+                <Select value={selectedWorkspace} onValueChange={(val) => {
+                  setSelectedWorkspace(val);
+                  setSelectedFacility('');
+                  setSelectedDepartment('');
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose workspace..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {organizationData?.map((workspace) => (
+                      <SelectItem key={workspace.id} value={workspace.id}>
+                        {workspace.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedWorkspace && (
+                <div className="space-y-2">
+                  <Label>2. Select Facility</Label>
+                  <Select value={selectedFacility} onValueChange={(val) => {
+                    setSelectedFacility(val);
+                    setSelectedDepartment('');
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose facility..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {facilities.map((facility: any) => (
+                        <SelectItem key={facility.id} value={facility.id}>
+                          {facility.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {selectedFacility && (
+                <div className="space-y-2">
+                  <Label>3. Select Department</Label>
+                  <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose department..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments.map((dept: any) => (
+                        <SelectItem key={dept.id} value={dept.id}>
+                          <div className="flex items-center justify-between w-full">
+                            <span>{dept.name}</span>
+                            <Badge variant="outline" className="ml-2">
+                              {dept.staff_count} staff
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {selectedDept && (
+                <div className="p-4 rounded-lg bg-muted/50 border">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">Department Head(s):</span>
+                    </div>
+                    {selectedDept.department_heads && selectedDept.department_heads.length > 0 ? (
+                      <div className="space-y-2">
+                        {selectedDept.department_heads.map((head: any) => (
+                          <div key={head.id} className="flex items-center justify-between p-2 bg-background rounded">
+                            <div>
+                              <p className="font-medium text-sm">{head.full_name}</p>
+                              <p className="text-xs text-muted-foreground">{head.email}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No department head assigned</p>
+                    )}
+                    <div className="pt-2 border-t">
+                      <p className="text-sm text-muted-foreground">
+                        Current Staff Count: <span className="font-semibold">{selectedDept.staff_count}</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Bulk Staff Creation */}
+      {selectedDepartment && (
+        <Card className="border-2 border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Bulk Staff Creation
+            </CardTitle>
+            <CardDescription>
+              Add multiple staff members to <span className="font-semibold">{selectedDept?.name}</span> department. 
+              Default password: 1234 (must be changed on first login)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="emails">Email Addresses (one per line)</Label>
+              <Textarea
+                id="emails"
+                placeholder="john@example.com&#10;jane@example.com&#10;mike@example.com"
+                value={emails}
+                onChange={(e) => setEmails(e.target.value)}
+                rows={8}
+                className="font-mono text-sm"
+              />
+              <p className="text-sm text-muted-foreground">
+                Enter one email address per line. Invalid emails will be skipped.
+              </p>
+            </div>
+
+            <Button
+              onClick={handleSubmit}
+              disabled={createStaffMutation.isPending}
+              className="w-full bg-gradient-primary"
+            >
+              {createStaffMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Create Staff Users
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Organizational Overview */}
+      <Card className="border-2">
+        <CardHeader>
+          <CardTitle>Organizational Overview</CardTitle>
+          <CardDescription>View complete hierarchy with staff distribution</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!organizationData || organizationData.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No organizational structure found</p>
+            </div>
+          ) : (
+            <Accordion type="single" collapsible className="space-y-2">
+              {organizationData.map((workspace: any) => (
+                <AccordionItem key={workspace.id} value={workspace.id} className="border rounded-lg">
+                  <AccordionTrigger className="px-4 hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-5 w-5 text-primary" />
+                      <span className="font-semibold">{workspace.name}</span>
+                      <Badge variant="secondary">{workspace.facilities?.length || 0} facilities</Badge>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-4 pb-4">
+                    {workspace.facilities?.length > 0 ? (
+                      <div className="space-y-3 mt-2">
+                        {workspace.facilities.map((facility: any) => (
+                          <div key={facility.id} className="border rounded-lg p-3 bg-muted/30">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Building2 className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-medium">{facility.name}</span>
+                              <Badge variant="outline">{facility.departments?.length || 0} departments</Badge>
+                            </div>
+                            {facility.departments?.length > 0 && (
+                              <div className="space-y-2 ml-6">
+                                {facility.departments.map((dept: any) => (
+                                  <div key={dept.id} className="p-2 rounded bg-background text-sm">
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-medium">{dept.name}</span>
+                                      <div className="flex items-center gap-2">
+                                        {dept.department_heads?.length > 0 && (
+                                          <Badge variant="secondary" className="text-xs">
+                                            <User className="h-3 w-3 mr-1" />
+                                            {dept.department_heads[0].full_name}
+                                          </Badge>
+                                        )}
+                                        <Badge className="text-xs">
+                                          <Users className="h-3 w-3 mr-1" />
+                                          {dept.staff_count} staff
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground py-2">No facilities in this workspace</p>
+                    )}
+                  </AccordionContent>
+                </AccordionItem>
               ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="emails">Email Addresses (one per line)</Label>
-          <Textarea
-            id="emails"
-            placeholder="john@example.com&#10;jane@example.com&#10;mike@example.com"
-            value={emails}
-            onChange={(e) => setEmails(e.target.value)}
-            rows={8}
-            className="font-mono text-sm"
-          />
-          <p className="text-sm text-muted-foreground">
-            Enter one email address per line. Invalid emails will be skipped.
-          </p>
-        </div>
-
-        <Button
-          onClick={handleSubmit}
-          disabled={createStaffMutation.isPending}
-          className="w-full"
-        >
-          {createStaffMutation.isPending && (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            </Accordion>
           )}
-          Create Staff Users
-        </Button>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
