@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Building2, FolderPlus, Plus, Users, Trash2 } from 'lucide-react';
+import { Building2, FolderPlus, Plus, Users, Trash2, Edit } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -103,6 +103,8 @@ const DepartmentManagement = () => {
   const [parentDepartment, setParentDepartment] = useState<string>('');
   const [minStaffing, setMinStaffing] = useState<number>(1);
   const [usePreset, setUsePreset] = useState(false);
+  const [editingDept, setEditingDept] = useState<any>(null);
+  const [editOpen, setEditOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: organizationData, isLoading, isError, error } = useQuery({
@@ -244,6 +246,27 @@ const DepartmentManagement = () => {
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to delete department');
+    },
+  });
+
+  const updateDepartmentMutation = useMutation({
+    mutationFn: async (data: { id: string; name: string; min_staffing: number }) => {
+      const { error } = await supabase
+        .from('departments')
+        .update({ name: data.name, min_staffing: data.min_staffing })
+        .eq('id', data.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['departments-hierarchy'] });
+      queryClient.invalidateQueries({ queryKey: ['organization-hierarchy'] });
+      toast.success('Department updated successfully');
+      setEditOpen(false);
+      setEditingDept(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to update department');
     },
   });
 
@@ -551,22 +574,33 @@ const DepartmentManagement = () => {
                                           <div key={dept.id} className="space-y-2">
                                             <div className="p-2 rounded bg-background text-sm group">
                                               <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-2">
-                                                  <span className="font-medium">{dept.name}</span>
-                                                  <Badge variant="secondary" className="text-xs">
-                                                    <Users className="h-3 w-3 mr-1" />
-                                                    Min: {dept.min_staffing}
-                                                  </Badge>
-                                                </div>
-                                                <Button
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                                  onClick={() => deleteDepartmentMutation.mutate(dept.id)}
-                                                  disabled={deleteDepartmentMutation.isPending}
-                                                >
-                                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                                </Button>
+                                                 <div className="flex items-center gap-2">
+                                                   <span className="font-medium">{dept.name}</span>
+                                                   <Badge variant="secondary" className="text-xs">
+                                                     <Users className="h-3 w-3 mr-1" />
+                                                     Min: {dept.min_staffing}
+                                                   </Badge>
+                                                 </div>
+                                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                   <Button
+                                                     variant="ghost"
+                                                     size="sm"
+                                                     onClick={() => {
+                                                       setEditingDept(dept);
+                                                       setEditOpen(true);
+                                                     }}
+                                                   >
+                                                     <Edit className="h-4 w-4" />
+                                                   </Button>
+                                                   <Button
+                                                     variant="ghost"
+                                                     size="sm"
+                                                     onClick={() => deleteDepartmentMutation.mutate(dept.id)}
+                                                     disabled={deleteDepartmentMutation.isPending}
+                                                   >
+                                                     <Trash2 className="h-4 w-4 text-destructive" />
+                                                   </Button>
+                                                 </div>
                                               </div>
                                             </div>
                                             {dept.subdepartments && dept.subdepartments.length > 0 && (
@@ -574,22 +608,33 @@ const DepartmentManagement = () => {
                                                 {dept.subdepartments.map((subDept: any) => (
                                                   <div key={subDept.id} className="p-2 rounded bg-muted/50 text-sm border-l-2 border-primary/20 group">
                                                     <div className="flex items-center justify-between">
-                                                      <div className="flex items-center gap-2">
-                                                        <span className="text-sm">↳ {subDept.name}</span>
-                                                        <Badge variant="outline" className="text-xs">
-                                                          <Users className="h-3 w-3 mr-1" />
-                                                          Min: {subDept.min_staffing}
-                                                        </Badge>
-                                                      </div>
-                                                      <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                                        onClick={() => deleteDepartmentMutation.mutate(subDept.id)}
-                                                        disabled={deleteDepartmentMutation.isPending}
-                                                      >
-                                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                                      </Button>
+                                                       <div className="flex items-center gap-2">
+                                                         <span className="text-sm">↳ {subDept.name}</span>
+                                                         <Badge variant="outline" className="text-xs">
+                                                           <Users className="h-3 w-3 mr-1" />
+                                                           Min: {subDept.min_staffing}
+                                                         </Badge>
+                                                       </div>
+                                                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                         <Button
+                                                           variant="ghost"
+                                                           size="sm"
+                                                           onClick={() => {
+                                                             setEditingDept(subDept);
+                                                             setEditOpen(true);
+                                                           }}
+                                                         >
+                                                           <Edit className="h-4 w-4" />
+                                                         </Button>
+                                                         <Button
+                                                           variant="ghost"
+                                                           size="sm"
+                                                           onClick={() => deleteDepartmentMutation.mutate(subDept.id)}
+                                                           disabled={deleteDepartmentMutation.isPending}
+                                                         >
+                                                           <Trash2 className="h-4 w-4 text-destructive" />
+                                                         </Button>
+                                                       </div>
                                                     </div>
                                                   </div>
                                                 ))}
@@ -618,6 +663,57 @@ const DepartmentManagement = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Department Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Department</DialogTitle>
+            <DialogDescription>
+              Update department name and minimum staffing
+            </DialogDescription>
+          </DialogHeader>
+          {editingDept && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                updateDepartmentMutation.mutate({
+                  id: editingDept.id,
+                  name: editingDept.name,
+                  min_staffing: editingDept.min_staffing,
+                });
+              }}
+              className="space-y-4"
+            >
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Department Name *</Label>
+                <Input
+                  id="edit-name"
+                  value={editingDept.name}
+                  onChange={(e) => setEditingDept({ ...editingDept, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-staffing">Minimum Staffing *</Label>
+                <Input
+                  id="edit-staffing"
+                  type="number"
+                  min="1"
+                  value={editingDept.min_staffing}
+                  onChange={(e) =>
+                    setEditingDept({ ...editingDept, min_staffing: parseInt(e.target.value) || 1 })
+                  }
+                  required
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={updateDepartmentMutation.isPending}>
+                {updateDepartmentMutation.isPending ? 'Updating...' : 'Update Department'}
+              </Button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
