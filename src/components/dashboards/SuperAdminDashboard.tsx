@@ -14,6 +14,7 @@ import UserManagement from '@/components/admin/UserManagement';
 import VacationTypeManagement from '@/components/vacation/VacationTypeManagement';
 import FacilityUserManagement from '@/components/admin/FacilityUserManagement';
 import DepartmentManagement from '@/components/admin/DepartmentManagement';
+import CategoryManagement from '@/components/admin/CategoryManagement';
 import VacationConflictDashboard from '@/components/vacation/VacationConflictDashboard';
 
 const SuperAdminDashboard = () => {
@@ -178,6 +179,13 @@ const SuperAdminDashboard = () => {
             >
               <FolderTree className="h-4 w-4" />
               <span className="hidden sm:inline">Departments</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="categories" 
+              className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+            >
+              <Briefcase className="h-4 w-4" />
+              <span className="hidden sm:inline">Categories</span>
             </TabsTrigger>
             <TabsTrigger 
               value="conflicts" 
@@ -404,6 +412,10 @@ const SuperAdminDashboard = () => {
 
         <TabsContent value="departments">
           <DepartmentManagement />
+        </TabsContent>
+
+        <TabsContent value="categories">
+          <CategoryManagement />
         </TabsContent>
 
         <TabsContent value="conflicts">

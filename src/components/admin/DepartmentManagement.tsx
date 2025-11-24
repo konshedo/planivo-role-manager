@@ -31,6 +31,7 @@ const DepartmentManagement = () => {
   const [departmentName, setDepartmentName] = useState('');
   const [subdepartmentName, setSubdepartmentName] = useState('');
   const [selectedFacility, setSelectedFacility] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedParentDept, setSelectedParentDept] = useState<any>(null);
   const [editingDept, setEditingDept] = useState<any>(null);
   const [minStaffing, setMinStaffing] = useState<number>(1);
@@ -43,6 +44,21 @@ const DepartmentManagement = () => {
       const { data, error } = await supabase
         .from('facilities')
         .select('*, workspaces(name)')
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: categories } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('is_active', true)
+        .order('is_system_default', { ascending: false })
         .order('name');
       
       if (error) throw error;
@@ -87,6 +103,7 @@ const DepartmentManagement = () => {
       name: string;
       facility_id: string;
       parent_department_id?: string;
+      category?: string;
       min_staffing: number;
     }) => {
       const { data: department, error } = await supabase
@@ -185,7 +202,7 @@ const DepartmentManagement = () => {
 
   const handleCreateDepartment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!departmentName.trim() || !selectedFacility) {
+    if (!departmentName.trim() || !selectedFacility || !selectedCategory) {
       toast.error('Please fill all required fields');
       return;
     }
@@ -193,6 +210,7 @@ const DepartmentManagement = () => {
     createDepartmentMutation.mutate({
       name: departmentName,
       facility_id: selectedFacility,
+      category: selectedCategory,
       min_staffing: minStaffing,
     });
   };
@@ -276,6 +294,22 @@ const DepartmentManagement = () => {
               </DialogHeader>
               <form onSubmit={handleCreateDepartment} className="space-y-4">
                 <div className="space-y-2">
+                  <Label htmlFor="category">Category *</Label>
+                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background z-50">
+                      {categories?.map((category: any) => (
+                        <SelectItem key={category.id} value={category.name}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="facility">Facility *</Label>
                   <Select value={selectedFacility} onValueChange={setSelectedFacility}>
                     <SelectTrigger>
@@ -337,6 +371,7 @@ const DepartmentManagement = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Department</TableHead>
+                  <TableHead>Category</TableHead>
                   <TableHead>Facility</TableHead>
                   <TableHead>Min Staff</TableHead>
                   <TableHead>Subdepartments</TableHead>
@@ -348,6 +383,13 @@ const DepartmentManagement = () => {
                   <>
                     <TableRow key={dept.id} className="font-medium">
                       <TableCell>{dept.name}</TableCell>
+                      <TableCell>
+                        {dept.category ? (
+                          <Badge variant="outline">{dept.category}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
+                      </TableCell>
                       <TableCell>{dept.facilities?.name}</TableCell>
                       <TableCell>
                         <Badge variant="secondary">
@@ -394,6 +436,7 @@ const DepartmentManagement = () => {
                         <TableCell className="pl-8">
                           <span className="text-muted-foreground">└─</span> {sub.name}
                         </TableCell>
+                        <TableCell className="text-muted-foreground">—</TableCell>
                         <TableCell className="text-muted-foreground">—</TableCell>
                         <TableCell>
                           <Badge variant="secondary" className="text-xs">
