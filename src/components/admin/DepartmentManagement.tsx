@@ -11,6 +11,7 @@ import { Building2, FolderPlus, Plus, Users, Trash2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Department presets organized by category
 const departmentPresets = {
@@ -104,7 +105,7 @@ const DepartmentManagement = () => {
   const [usePreset, setUsePreset] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: organizationData } = useQuery({
+  const { data: organizationData, isLoading, isError, error } = useQuery({
     queryKey: ['departments-hierarchy'],
     queryFn: async () => {
       const { data: workspaces, error: wsError } = await supabase
@@ -488,10 +489,20 @@ const DepartmentManagement = () => {
           <CardDescription>View and manage all departments organized by facility</CardDescription>
         </CardHeader>
         <CardContent>
-          {!organizationData || organizationData.length === 0 ? (
+          {isLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-24 w-full" />
+              ))}
+            </div>
+          ) : isError ? (
+            <div className="text-center py-8 text-destructive">
+              <p>Error loading departments: {error?.message}</p>
+            </div>
+          ) : !organizationData || organizationData.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No departments found</p>
+              <p>No workspaces found. Create a workspace first in the Workspaces tab.</p>
             </div>
           ) : (
             <Accordion type="single" collapsible className="space-y-2">
