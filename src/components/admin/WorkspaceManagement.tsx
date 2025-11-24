@@ -21,6 +21,7 @@ const workspaceSchema = z.object({
 const WorkspaceManagement = () => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
+  const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false);
   const [manageDepartmentsOpen, setManageDepartmentsOpen] = useState(false);
   const [selectedWorkspace, setSelectedWorkspace] = useState<any>(null);
   const queryClient = useQueryClient();
@@ -66,6 +67,22 @@ const WorkspaceManagement = () => {
       if (error) throw error;
       return data;
     },
+  });
+
+  const { data: workspaceCategories } = useQuery({
+    queryKey: ['workspace-categories', selectedWorkspace?.id],
+    queryFn: async () => {
+      if (!selectedWorkspace) return [];
+      
+      const { data, error } = await supabase
+        .from('workspace_categories')
+        .select('*')
+        .eq('workspace_id', selectedWorkspace.id);
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedWorkspace,
   });
 
   const { data: workspaceDepartments } = useQuery({
@@ -129,6 +146,38 @@ const WorkspaceManagement = () => {
     },
   });
 
+  const toggleCategoryMutation = useMutation({
+    mutationFn: async ({ workspaceId, categoryId, isAssigned }: { workspaceId: string; categoryId: string; isAssigned: boolean }) => {
+      if (isAssigned) {
+        // Remove assignment
+        const { error } = await supabase
+          .from('workspace_categories')
+          .delete()
+          .eq('workspace_id', workspaceId)
+          .eq('category_id', categoryId);
+        
+        if (error) throw error;
+      } else {
+        // Add assignment
+        const { error } = await supabase
+          .from('workspace_categories')
+          .insert({
+            workspace_id: workspaceId,
+            category_id: categoryId,
+          });
+        
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspace-categories'] });
+      toast.success('Category assignment updated');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to update category');
+    },
+  });
+
   const toggleDepartmentMutation = useMutation({
     mutationFn: async ({ workspaceId, departmentId, isAssigned }: { workspaceId: string; departmentId: string; isAssigned: boolean }) => {
       if (isAssigned) {
@@ -166,6 +215,21 @@ const WorkspaceManagement = () => {
     createMutation.mutate(name);
   };
 
+  const isCategoryAssigned = (categoryId: string) => {
+    return workspaceCategories?.some(wc => wc.category_id === categoryId) || false;
+  };
+
+  const handleToggleCategory = (categoryId: string) => {
+    if (!selectedWorkspace) return;
+    
+    const isAssigned = isCategoryAssigned(categoryId);
+    toggleCategoryMutation.mutate({
+      workspaceId: selectedWorkspace.id,
+      categoryId,
+      isAssigned,
+    });
+  };
+
   const isDepartmentAssigned = (departmentId: string) => {
     return workspaceDepartments?.some(wd => wd.department_template_id === departmentId) || false;
   };
@@ -183,6 +247,12 @@ const WorkspaceManagement = () => {
 
   const getDepartmentsByCategory = (categoryName: string) => {
     return templateDepartments?.filter(d => d.category === categoryName) || [];
+  };
+
+  const getAssignedCategories = () => {
+    if (!workspaceCategories || !categories) return [];
+    const assignedCategoryIds = workspaceCategories.map(wc => wc.category_id);
+    return categories.filter(c => assignedCategoryIds.includes(c.id));
   };
 
   const getAssignedDepartmentsCount = (workspaceId: string) => {
@@ -262,6 +332,17 @@ const WorkspaceManagement = () => {
                     size="sm"
                     onClick={() => {
                       setSelectedWorkspace(workspace);
+                      setManageCategoriesOpen(true);
+                    }}
+                  >
+                    <FolderTree className="h-4 w-4 mr-2" />
+                    Categories
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedWorkspace(workspace);
                       setManageDepartmentsOpen(true);
                     }}
                   >
@@ -288,6 +369,57 @@ const WorkspaceManagement = () => {
         )}
       </CardContent>
 
+      {/* Manage Categories Dialog */}
+      <Dialog open={manageCategoriesOpen} onOpenChange={setManageCategoriesOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Manage Categories</DialogTitle>
+            <DialogDescription>
+              Select categories for {selectedWorkspace?.name}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {categories && categories.length > 0 ? (
+              <div className="grid gap-2">
+                {categories.map((category: any) => {
+                  const isAssigned = isCategoryAssigned(category.id);
+                  
+                  return (
+                    <div
+                      key={category.id}
+                      className="flex items-center space-x-2 p-3 rounded-md border hover:bg-accent cursor-pointer transition-colors"
+                      onClick={() => handleToggleCategory(category.id)}
+                    >
+                      <Checkbox
+                        id={category.id}
+                        checked={isAssigned}
+                        onCheckedChange={() => handleToggleCategory(category.id)}
+                      />
+                      <Label
+                        htmlFor={category.id}
+                        className="text-sm cursor-pointer flex-1"
+                      >
+                        <div className="font-medium">{category.name}</div>
+                        {category.description && (
+                          <div className="text-xs text-muted-foreground">{category.description}</div>
+                        )}
+                      </Label>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <FolderTree className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No categories available</p>
+                <p className="text-sm">Create categories first</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Manage Departments Dialog */}
       <Dialog open={manageDepartmentsOpen} onOpenChange={setManageDepartmentsOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -299,58 +431,58 @@ const WorkspaceManagement = () => {
           </DialogHeader>
 
           <div className="space-y-6">
-            {categories?.map((category: any) => {
-              const categoryDepts = getDepartmentsByCategory(category.name);
-              
-              if (categoryDepts.length === 0) return null;
-              
-              return (
-                <div key={category.id} className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <FolderTree className="h-4 w-4 text-primary" />
-                    <h3 className="font-semibold">{category.name}</h3>
-                    <Badge variant="secondary" className="text-xs">
-                      {categoryDepts.filter(d => isDepartmentAssigned(d.id)).length} / {categoryDepts.length}
-                    </Badge>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-2 ml-6">
-                    {categoryDepts.map((dept: any) => {
-                      const isAssigned = isDepartmentAssigned(dept.id);
-                      
-                      return (
-                        <div
-                          key={dept.id}
-                          className="flex items-center space-x-2 p-2 rounded-md hover:bg-accent cursor-pointer"
-                          onClick={() => handleToggleDepartment(dept.id)}
-                        >
-                          <Checkbox
-                            id={dept.id}
-                            checked={isAssigned}
-                            onCheckedChange={() => handleToggleDepartment(dept.id)}
-                          />
-                          <Label
-                            htmlFor={dept.id}
-                            className="text-sm cursor-pointer flex-1"
-                          >
-                            {dept.name}
-                          </Label>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  
-                  <Separator />
-                </div>
-              );
-            })}
-
-            {(!categories || categories.length === 0) && (
+            {getAssignedCategories().length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <FolderTree className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No department templates available</p>
-                <p className="text-sm">Create categories and departments first</p>
+                <p>No categories assigned to this workspace</p>
+                <p className="text-sm">Please assign categories first</p>
               </div>
+            ) : (
+              getAssignedCategories().map((category: any) => {
+                const categoryDepts = getDepartmentsByCategory(category.name);
+                
+                if (categoryDepts.length === 0) return null;
+                
+                return (
+                  <div key={category.id} className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <FolderTree className="h-4 w-4 text-primary" />
+                      <h3 className="font-semibold">{category.name}</h3>
+                      <Badge variant="secondary" className="text-xs">
+                        {categoryDepts.filter(d => isDepartmentAssigned(d.id)).length} / {categoryDepts.length}
+                      </Badge>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2 ml-6">
+                      {categoryDepts.map((dept: any) => {
+                        const isAssigned = isDepartmentAssigned(dept.id);
+                        
+                        return (
+                          <div
+                            key={dept.id}
+                            className="flex items-center space-x-2 p-2 rounded-md hover:bg-accent cursor-pointer"
+                            onClick={() => handleToggleDepartment(dept.id)}
+                          >
+                            <Checkbox
+                              id={dept.id}
+                              checked={isAssigned}
+                              onCheckedChange={() => handleToggleDepartment(dept.id)}
+                            />
+                            <Label
+                              htmlFor={dept.id}
+                              className="text-sm cursor-pointer flex-1"
+                            >
+                              {dept.name}
+                            </Label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    <Separator />
+                  </div>
+                );
+              })
             )}
           </div>
         </DialogContent>
