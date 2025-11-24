@@ -15,7 +15,7 @@ import { z } from 'zod';
 import { Switch } from '@/components/ui/switch';
 
 const userSchema = z.object({
-  email: z.string().trim().email('Invalid email address'),
+  email: z.string().trim().min(1, 'Email is required').email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   full_name: z.string().trim().min(2, 'Name must be at least 2 characters').max(100),
   role: z.enum(['super_admin', 'general_admin', 'workplace_supervisor', 'facility_supervisor', 'department_head', 'staff']),
@@ -111,20 +111,28 @@ const UserManagement = () => {
 
   const createUserMutation = useMutation({
     mutationFn: async (userData: any) => {
-      const validated = userSchema.parse(userData);
-      
-      const { data, error } = await supabase.functions.invoke('create-user', {
-        body: {
-          email: validated.email,
-          password: validated.password,
-          full_name: validated.full_name,
-          role: validated.role,
-          workspace_id: workspaceId || undefined,
-        },
-      });
+      try {
+        const validated = userSchema.parse(userData);
+        
+        const { data, error } = await supabase.functions.invoke('create-user', {
+          body: {
+            email: validated.email,
+            password: validated.password,
+            full_name: validated.full_name,
+            role: validated.role,
+            workspace_id: workspaceId || undefined,
+          },
+        });
 
-      if (error) throw error;
-      return data;
+        if (error) throw error;
+        return data;
+      } catch (error: any) {
+        if (error.name === 'ZodError') {
+          const firstError = error.errors[0];
+          throw new Error(firstError.message || 'Validation failed');
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
@@ -377,7 +385,7 @@ const UserManagement = () => {
                     type="email"
                     placeholder="user@example.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value.trim())}
+                    onChange={(e) => setEmail(e.target.value)}
                     required
                   />
                 </div>
