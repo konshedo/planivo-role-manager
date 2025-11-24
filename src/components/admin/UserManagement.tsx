@@ -5,7 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, UserPlus, Mail } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Plus, UserPlus, Mail, Filter } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -25,6 +27,7 @@ const UserManagement = () => {
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<string>('general_admin');
   const [workspaceId, setWorkspaceId] = useState<string>('');
+  const [filterWorkspace, setFilterWorkspace] = useState<string>('all');
   const queryClient = useQueryClient();
 
   const { data: workspaces } = useQuery({
@@ -36,6 +39,44 @@ const UserManagement = () => {
         .order('name');
       if (error) throw error;
       return data;
+    },
+  });
+
+  const { data: users, isLoading: usersLoading } = useQuery({
+    queryKey: ['users', filterWorkspace],
+    queryFn: async () => {
+      // Fetch all profiles
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (profilesError) throw profilesError;
+
+      // Fetch all user roles
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('*, workspaces(name)');
+
+      if (rolesError) throw rolesError;
+
+      // Combine profiles with their roles and workspaces
+      const usersWithRoles = profiles?.map((profile) => {
+        const roles = userRoles?.filter((ur) => ur.user_id === profile.id) || [];
+        return {
+          ...profile,
+          roles,
+        };
+      });
+
+      // Filter by workspace if selected
+      if (filterWorkspace && filterWorkspace !== 'all') {
+        return usersWithRoles?.filter((user) =>
+          user.roles.some((r: any) => r.workspace_id === filterWorkspace)
+        );
+      }
+
+      return usersWithRoles;
     },
   });
 
@@ -178,9 +219,84 @@ const UserManagement = () => {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="text-center py-8 text-muted-foreground">
-          <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>Users will receive login credentials at their email address</p>
+        <div className="space-y-4">
+          {/* Workspace Filter */}
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Label className="text-sm">Filter by Workspace:</Label>
+            <Select value={filterWorkspace} onValueChange={setFilterWorkspace}>
+              <SelectTrigger className="w-64">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Workspaces</SelectItem>
+                {workspaces?.map((workspace) => (
+                  <SelectItem key={workspace.id} value={workspace.id}>
+                    {workspace.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Users Table */}
+          {usersLoading ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Loading users...
+            </div>
+          ) : users && users.length > 0 ? (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Roles</TableHead>
+                    <TableHead>Workspaces</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {users.map((user: any) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">{user.full_name}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {user.roles.map((roleData: any, idx: number) => (
+                            <Badge key={idx} variant="outline">
+                              {roleData.role.replace('_', ' ')}
+                            </Badge>
+                          ))}
+                          {user.roles.length === 0 && (
+                            <span className="text-xs text-muted-foreground">No roles</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {user.roles
+                            .filter((r: any) => r.workspaces)
+                            .map((roleData: any, idx: number) => (
+                              <Badge key={idx} className="bg-primary/10">
+                                {roleData.workspaces.name}
+                              </Badge>
+                            ))}
+                          {user.roles.every((r: any) => !r.workspaces) && (
+                            <span className="text-xs text-muted-foreground">System-wide</span>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No users found</p>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
