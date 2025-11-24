@@ -200,34 +200,33 @@ const UserManagement = () => {
 
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-      toast.success('Role added successfully');
-      // Refresh the editing user's roles
+    onSuccess: async () => {
+      // Invalidate and refetch
+      await queryClient.invalidateQueries({ queryKey: ['users', filterWorkspace] });
+      
+      // Immediately refetch the updated user data
       if (editingUser) {
-        const userId = editingUser.id;
-        queryClient.invalidateQueries({ queryKey: ['users', filterWorkspace] });
-        // Wait for refetch and update editingUser
-        setTimeout(async () => {
-          const { data: updatedUsers } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', userId)
-            .single();
-          
-          const { data: updatedRoles } = await supabase
-            .from('user_roles')
-            .select('*, workspaces(name)')
-            .eq('user_id', userId);
-          
-          if (updatedUsers && updatedRoles) {
-            setEditingUser({
-              ...updatedUsers,
-              roles: updatedRoles,
-            });
-          }
-        }, 500);
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', editingUser.id)
+          .single();
+
+        const { data: userRoles } = await supabase
+          .from('user_roles')
+          .select('*, workspaces(name)')
+          .eq('user_id', editingUser.id);
+
+        if (profiles && userRoles) {
+          setEditingUser({
+            ...profiles,
+            roles: userRoles,
+          });
+        }
       }
+      
+      toast.success('Role added successfully');
+      
       // Reset form fields
       setNewRole('general_admin');
       setNewWorkspaceId('');
@@ -248,26 +247,32 @@ const UserManagement = () => {
 
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-      toast.success('Role removed successfully');
-      // Refresh the editing user's roles
+    onSuccess: async () => {
+      // Invalidate and refetch
+      await queryClient.invalidateQueries({ queryKey: ['users', filterWorkspace] });
+      
+      // Immediately refetch the updated user data
       if (editingUser) {
-        const userId = editingUser.id;
-        setTimeout(async () => {
-          const { data: updatedRoles } = await supabase
-            .from('user_roles')
-            .select('*, workspaces(name)')
-            .eq('user_id', userId);
-          
-          if (updatedRoles) {
-            setEditingUser({
-              ...editingUser,
-              roles: updatedRoles,
-            });
-          }
-        }, 500);
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', editingUser.id)
+          .single();
+
+        const { data: userRoles } = await supabase
+          .from('user_roles')
+          .select('*, workspaces(name)')
+          .eq('user_id', editingUser.id);
+
+        if (profiles && userRoles) {
+          setEditingUser({
+            ...profiles,
+            roles: userRoles,
+          });
+        }
       }
+      
+      toast.success('Role removed successfully');
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to remove role');
