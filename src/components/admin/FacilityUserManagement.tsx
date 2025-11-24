@@ -12,6 +12,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 
 const facilitySchema = z.object({
   name: z.string().min(2, 'Facility name must be at least 2 characters'),
@@ -36,6 +37,22 @@ const FacilityUserManagement = () => {
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<string>('staff');
   const queryClient = useQueryClient();
+
+  // Real-time subscriptions for live updates
+  useRealtimeSubscription({
+    table: 'profiles',
+    invalidateQueries: ['workspaces-with-facilities'],
+  });
+
+  useRealtimeSubscription({
+    table: 'user_roles',
+    invalidateQueries: ['workspaces-with-facilities'],
+  });
+
+  useRealtimeSubscription({
+    table: 'facilities',
+    invalidateQueries: ['workspaces-with-facilities'],
+  });
 
   const { data: workspaces, isLoading, isError, error } = useQuery({
     queryKey: ['workspaces-with-facilities'],

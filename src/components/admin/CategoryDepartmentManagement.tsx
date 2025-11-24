@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 
 const CategoryDepartmentManagement = () => {
   const [createCategoryOpen, setCreateCategoryOpen] = useState(false);
@@ -34,6 +35,17 @@ const CategoryDepartmentManagement = () => {
   const [editingDepartment, setEditingDepartment] = useState<any>(null);
   
   const queryClient = useQueryClient();
+
+  // Real-time subscriptions for live updates
+  useRealtimeSubscription({
+    table: 'categories',
+    invalidateQueries: ['categories'],
+  });
+
+  useRealtimeSubscription({
+    table: 'departments',
+    invalidateQueries: ['template-departments'],
+  });
 
   const { data: categories, isLoading: categoriesLoading } = useQuery({
     queryKey: ['categories'],

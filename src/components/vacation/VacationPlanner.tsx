@@ -14,6 +14,7 @@ import { format } from 'date-fns';
 import { CalendarIcon, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 
 interface VacationSplit {
   start_date: Date;
@@ -34,6 +35,22 @@ const VacationPlanner = ({ departmentId, maxSplits = 6, staffOnly = false }: Vac
   const [selectedVacationType, setSelectedVacationType] = useState('');
   const [notes, setNotes] = useState('');
   const [splits, setSplits] = useState<VacationSplit[]>([]);
+
+  // Real-time subscriptions for live updates
+  useRealtimeSubscription({
+    table: 'vacation_plans',
+    invalidateQueries: ['vacation-plans', 'department-staff'],
+  });
+
+  useRealtimeSubscription({
+    table: 'vacation_splits',
+    invalidateQueries: ['vacation-plans'],
+  });
+
+  useRealtimeSubscription({
+    table: 'vacation_types',
+    invalidateQueries: ['vacation-types'],
+  });
 
   const { data: vacationTypes } = useQuery({
     queryKey: ['vacation-types'],

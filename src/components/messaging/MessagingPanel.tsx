@@ -15,6 +15,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 
 interface Conversation {
   id: string;
@@ -47,6 +48,22 @@ const MessagingPanel = () => {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [groupName, setGroupName] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Real-time subscriptions for live updates
+  useRealtimeSubscription({
+    table: 'messages',
+    invalidateQueries: ['conversation-messages', 'user-conversations'],
+  });
+
+  useRealtimeSubscription({
+    table: 'conversations',
+    invalidateQueries: ['user-conversations'],
+  });
+
+  useRealtimeSubscription({
+    table: 'conversation_participants',
+    invalidateQueries: ['user-conversations', 'conversation-messages'],
+  });
 
   // Fetch workspace users
   const { data: workspaceUsers = [] } = useQuery({
