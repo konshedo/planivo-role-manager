@@ -57,12 +57,12 @@ const StaffDashboard = () => {
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
-                  Request Vacation
+                  Plan Vacation
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Request Vacation</DialogTitle>
+                  <DialogTitle>Plan Vacation</DialogTitle>
                 </DialogHeader>
                 <VacationPlanner 
                   staffOnly={true} 
