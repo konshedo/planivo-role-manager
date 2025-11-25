@@ -9,9 +9,12 @@ import WorkspaceManagement from '@/components/admin/WorkspaceManagement';
 import CategoryDepartmentManagement from '@/components/admin/CategoryDepartmentManagement';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { ModuleGuard } from '@/components/ModuleGuard';
+import { useModuleContext } from '@/contexts/ModuleContext';
 
 const GeneralAdminDashboard = () => {
   const { user } = useAuth();
+  const { hasAccess } = useModuleContext();
 
   const { data: userRole } = useQuery({
     queryKey: ['general-admin-role', user?.id],
@@ -106,33 +109,51 @@ const GeneralAdminDashboard = () => {
         </Card>
 
         {/* Management Tabs */}
-        <Tabs defaultValue="facilities" className="space-y-4">
+        <Tabs defaultValue={hasAccess('organization') ? 'facilities' : hasAccess('user_management') ? 'users' : undefined} className="space-y-4">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="facilities">
-              <Building2 className="h-4 w-4 mr-2" />
-              Facilities
-            </TabsTrigger>
-            <TabsTrigger value="categories">
-              <FolderTree className="h-4 w-4 mr-2" />
-              Categories & Departments
-            </TabsTrigger>
-            <TabsTrigger value="users">
-              <Users className="h-4 w-4 mr-2" />
-              Users
-            </TabsTrigger>
+            {hasAccess('organization') && (
+              <TabsTrigger value="facilities">
+                <Building2 className="h-4 w-4 mr-2" />
+                Facilities
+              </TabsTrigger>
+            )}
+            {hasAccess('organization') && (
+              <TabsTrigger value="categories">
+                <FolderTree className="h-4 w-4 mr-2" />
+                Categories & Departments
+              </TabsTrigger>
+            )}
+            {hasAccess('user_management') && (
+              <TabsTrigger value="users">
+                <Users className="h-4 w-4 mr-2" />
+                Users
+              </TabsTrigger>
+            )}
           </TabsList>
 
-          <TabsContent value="facilities">
-            <WorkspaceManagement />
-          </TabsContent>
+          {hasAccess('organization') && (
+            <TabsContent value="facilities">
+              <ModuleGuard moduleKey="organization">
+                <WorkspaceManagement />
+              </ModuleGuard>
+            </TabsContent>
+          )}
 
-          <TabsContent value="categories">
-            <CategoryDepartmentManagement />
-          </TabsContent>
+          {hasAccess('organization') && (
+            <TabsContent value="categories">
+              <ModuleGuard moduleKey="organization">
+                <CategoryDepartmentManagement />
+              </ModuleGuard>
+            </TabsContent>
+          )}
 
-          <TabsContent value="users">
-            <FacilityUserManagement />
-          </TabsContent>
+          {hasAccess('user_management') && (
+            <TabsContent value="users">
+              <ModuleGuard moduleKey="user_management">
+                <FacilityUserManagement />
+              </ModuleGuard>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </DashboardLayout>

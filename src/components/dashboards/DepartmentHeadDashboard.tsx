@@ -18,6 +18,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { ModuleGuard } from '@/components/ModuleGuard';
+import { useModuleContext } from '@/contexts/ModuleContext';
 
 const staffSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -26,6 +28,7 @@ const staffSchema = z.object({
 
 const DepartmentHeadDashboard = () => {
   const { user } = useAuth();
+  const { hasAccess } = useModuleContext();
   const [addStaffOpen, setAddStaffOpen] = useState(false);
   const [addMode, setAddMode] = useState<'existing' | 'new'>('existing');
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -272,23 +275,31 @@ const DepartmentHeadDashboard = () => {
 
   return (
     <DashboardLayout title="Team Management" roleLabel="Department Head" roleColor="text-primary">
-      <Tabs defaultValue="staff" className="space-y-4">
+      <Tabs defaultValue={hasAccess('staff_management') ? 'staff' : hasAccess('vacation_planning') ? 'vacation' : 'tasks'} className="space-y-4">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="staff">
-            <UserPlus className="h-4 w-4 mr-2" />
-            Staff Management
-          </TabsTrigger>
-          <TabsTrigger value="vacation">
-            <Calendar className="h-4 w-4 mr-2" />
-            Vacation Planning
-          </TabsTrigger>
-          <TabsTrigger value="tasks">
-            <ClipboardList className="h-4 w-4 mr-2" />
-            Department Tasks
-          </TabsTrigger>
+          {hasAccess('staff_management') && (
+            <TabsTrigger value="staff">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Staff Management
+            </TabsTrigger>
+          )}
+          {hasAccess('vacation_planning') && (
+            <TabsTrigger value="vacation">
+              <Calendar className="h-4 w-4 mr-2" />
+              Vacation Planning
+            </TabsTrigger>
+          )}
+          {hasAccess('task_management') && (
+            <TabsTrigger value="tasks">
+              <ClipboardList className="h-4 w-4 mr-2" />
+              Department Tasks
+            </TabsTrigger>
+          )}
         </TabsList>
 
-        <TabsContent value="staff">
+        {hasAccess('staff_management') && (
+          <TabsContent value="staff">
+            <ModuleGuard moduleKey="staff_management">
           <Card className="border-2">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -333,18 +344,28 @@ const DepartmentHeadDashboard = () => {
               )}
             </CardContent>
           </Card>
+        </ModuleGuard>
         </TabsContent>
+        )}
 
-        <TabsContent value="vacation">
-          <div className="space-y-6">
-            <VacationPlanner departmentId={userRole.department_id} />
-            <VacationPlansList departmentId={userRole.department_id} />
-          </div>
-        </TabsContent>
+        {hasAccess('vacation_planning') && (
+          <TabsContent value="vacation">
+            <ModuleGuard moduleKey="vacation_planning">
+              <div className="space-y-6">
+                <VacationPlanner departmentId={userRole.department_id} />
+                <VacationPlansList departmentId={userRole.department_id} />
+              </div>
+            </ModuleGuard>
+          </TabsContent>
+        )}
 
-        <TabsContent value="tasks">
-          <TaskManager scopeType="department" scopeId={userRole.department_id} />
-        </TabsContent>
+        {hasAccess('task_management') && (
+          <TabsContent value="tasks">
+            <ModuleGuard moduleKey="task_management">
+              <TaskManager scopeType="department" scopeId={userRole.department_id} />
+            </ModuleGuard>
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Add Staff Dialog */}

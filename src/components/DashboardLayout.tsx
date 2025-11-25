@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import NotificationBell from '@/components/notifications/NotificationBell';
 import MessagingPanel from '@/components/messaging/MessagingPanel';
 import UserProfile from '@/components/UserProfile';
+import { useModuleContext } from '@/contexts/ModuleContext';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -16,6 +17,7 @@ interface DashboardLayoutProps {
 
 const DashboardLayout = ({ children, title, roleLabel, roleColor = 'bg-primary' }: DashboardLayoutProps) => {
   const { signOut } = useAuth();
+  const { hasAccess } = useModuleContext();
 
   return (
     <div className="min-h-screen bg-background">
@@ -31,8 +33,8 @@ const DashboardLayout = ({ children, title, roleLabel, roleColor = 'bg-primary' 
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <NotificationBell />
-              <MessagingPanel />
+              {hasAccess('notifications') && <NotificationBell />}
+              {hasAccess('messaging') && <MessagingPanel />}
               <UserProfile />
               <Button onClick={signOut} variant="outline" size="sm">
                 <LogOut className="mr-2 h-4 w-4" />
