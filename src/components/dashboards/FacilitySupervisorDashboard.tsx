@@ -15,7 +15,7 @@ const FacilitySupervisorDashboard = () => {
   const { hasAccess } = useModuleContext();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
-  const activeTab = searchParams.get('tab') || 'tasks';
+  const activeTab = searchParams.get('tab') || (hasAccess('task_management') ? 'tasks' : hasAccess('vacation_planning') ? 'approvals' : 'tasks');
 
   const { data: userRole } = useQuery({
     queryKey: ['facility-supervisor-role', user?.id],
@@ -38,10 +38,24 @@ const FacilitySupervisorDashboard = () => {
 
   return (
     <>
-      <PageHeader 
-        title="Facility Overview" 
-        description="Manage facility tasks and vacation approvals"
-      />
+      {activeTab === 'tasks' && (
+        <PageHeader 
+          title="Facility Tasks" 
+          description="Manage and assign tasks within the facility"
+        />
+      )}
+      {activeTab === 'approvals' && (
+        <PageHeader 
+          title="Vacation Approvals" 
+          description="Review and approve vacation plans for the facility"
+        />
+      )}
+      {activeTab === 'conflicts' && (
+        <PageHeader 
+          title="Vacation Conflicts" 
+          description="View and resolve vacation scheduling conflicts"
+        />
+      )}
       
       <div className="space-y-4">
         {activeTab === 'tasks' && hasAccess('task_management') && (

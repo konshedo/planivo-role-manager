@@ -15,7 +15,7 @@ const WorkplaceSupervisorDashboard = () => {
   const { hasAccess } = useModuleContext();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
-  const activeTab = searchParams.get('tab') || 'tasks';
+  const activeTab = searchParams.get('tab') || (hasAccess('task_management') ? 'tasks' : hasAccess('vacation_planning') ? 'approvals' : 'tasks');
 
   const { data: userRole } = useQuery({
     queryKey: ['workplace-supervisor-role', user?.id],
@@ -38,10 +38,24 @@ const WorkplaceSupervisorDashboard = () => {
 
   return (
     <>
-      <PageHeader 
-        title="Final Approvals" 
-        description="Manage workspace tasks and final vacation approvals"
-      />
+      {activeTab === 'tasks' && (
+        <PageHeader 
+          title="Workspace Tasks" 
+          description="Manage and assign tasks across the workspace"
+        />
+      )}
+      {activeTab === 'approvals' && (
+        <PageHeader 
+          title="Final Vacation Approvals" 
+          description="Review and approve vacation plans at the workspace level"
+        />
+      )}
+      {activeTab === 'conflicts' && (
+        <PageHeader 
+          title="Vacation Conflicts" 
+          description="View and resolve vacation scheduling conflicts"
+        />
+      )}
       
       <div className="space-y-4">
         {activeTab === 'tasks' && hasAccess('task_management') && (

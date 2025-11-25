@@ -19,7 +19,7 @@ const GeneralAdminDashboard = () => {
   const { hasAccess } = useModuleContext();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
-  const activeTab = searchParams.get('tab') || 'facilities';
+  const activeTab = searchParams.get('tab') || (hasAccess('organization') ? 'facilities' : hasAccess('user_management') ? 'users' : 'modules');
 
   const { data: userRole } = useQuery({
     queryKey: ['general-admin-role', user?.id],
@@ -71,10 +71,30 @@ const GeneralAdminDashboard = () => {
 
   return (
     <>
-      <PageHeader 
-        title={userRole.workspaces?.name || 'Workspace Management'}
-        description="Manage your workspace facilities, departments, and users"
-      />
+      {(activeTab === 'facilities' || !activeTab) && (
+        <PageHeader 
+          title={userRole.workspaces?.name || 'Workspace Management'}
+          description="Manage workspace facilities and organizational structure"
+        />
+      )}
+      {activeTab === 'categories' && (
+        <PageHeader 
+          title="Categories & Departments" 
+          description="Manage organizational categories and department templates"
+        />
+      )}
+      {activeTab === 'users' && (
+        <PageHeader 
+          title="User Management" 
+          description="Manage workspace users and their roles"
+        />
+      )}
+      {activeTab === 'modules' && (
+        <PageHeader 
+          title="Module Configuration" 
+          description="Configure module access for this workspace"
+        />
+      )}
       
       <div className="space-y-6">
         {/* Stats Grid */}
