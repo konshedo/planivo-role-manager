@@ -1,9 +1,9 @@
-import MessagingPanel from './MessagingPanel';
+import MessagesList from './MessagesList';
 
 const MessagingHub = () => {
   return (
     <div className="space-y-4">
-      <MessagingPanel />
+      <MessagesList />
     </div>
   );
 };
