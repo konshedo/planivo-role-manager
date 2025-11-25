@@ -12,6 +12,7 @@ import { OrganizationHub } from '@/modules/organization';
 import { VacationHub } from '@/modules/vacation';
 import { ModuleAccessHub } from '@/modules/core';
 import { TaskHub } from '@/modules/tasks';
+import { StaffManagementHub } from '@/modules/staff-management';
 import ModuleSystemValidator from '@/components/admin/ModuleSystemValidator';
 import { ModuleGuard } from '@/components/ModuleGuard';
 import { useModuleContext } from '@/contexts/ModuleContext';
@@ -182,7 +183,13 @@ const SuperAdminDashboard = () => {
           description="Create, assign, and track tasks across the system"
         />
       )}
-      {!['dashboard', 'modules', 'validator', 'organization', 'users', 'vacation', 'tasks'].includes(activeTab) && (
+      {activeTab === 'staff' && (
+        <PageHeader 
+          title="Staff Management" 
+          description="Manage staff across all departments and facilities"
+        />
+      )}
+      {!['dashboard', 'modules', 'validator', 'organization', 'users', 'vacation', 'tasks', 'staff'].includes(activeTab) && (
         <PageHeader 
           title="System Overview" 
           description="Manage your entire system from one centralized dashboard"
@@ -384,8 +391,14 @@ const SuperAdminDashboard = () => {
           </ModuleGuard>
         )}
 
+        {activeTab === 'staff' && hasAccess('staff_management') && (
+          <ModuleGuard moduleKey="staff_management">
+            <StaffManagementHub />
+          </ModuleGuard>
+        )}
+
         {/* Show empty state if no valid tab content */}
-        {!['dashboard', 'modules', 'validator', 'organization', 'users', 'vacation', 'tasks'].includes(activeTab) && (
+        {!['dashboard', 'modules', 'validator', 'organization', 'users', 'vacation', 'tasks', 'staff'].includes(activeTab) && (
           <div className="text-center py-12">
             <p className="text-muted-foreground">Content not found. Please select a valid module from the sidebar.</p>
           </div>
