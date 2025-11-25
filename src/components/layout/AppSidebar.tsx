@@ -8,10 +8,16 @@ import {
   CheckSquare, 
   MessageSquare, 
   Bell,
-  Settings
+  Settings,
+  LogOut,
+  User
 } from 'lucide-react';
 import { useModuleContext } from '@/contexts/ModuleContext';
 import { useUserRole } from '@/hooks/useUserRole';
+import { Button } from '@/components/ui/button';
+import NotificationBell from '@/components/notifications/NotificationBell';
+import MessagingPanel from '@/components/messaging/MessagingPanel';
+import UserProfile from '@/components/UserProfile';
 import {
   Sidebar,
   SidebarContent,
@@ -21,8 +27,15 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarFooter,
+  SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
+
+interface AppSidebarProps {
+  hasAccess: (moduleKey: string) => boolean;
+  signOut: () => void;
+}
 
 // Module configuration with icons and labels
 const moduleConfig = [
@@ -36,11 +49,10 @@ const moduleConfig = [
   { key: 'notifications', label: 'Notifications', icon: Bell, path: '/dashboard?tab=notifications' },
 ];
 
-export function AppSidebar() {
+export function AppSidebar({ hasAccess, signOut }: AppSidebarProps) {
   const { state } = useSidebar();
   const location = useLocation();
   const navigate = useNavigate();
-  const { hasAccess } = useModuleContext();
   const { data: roles } = useUserRole();
   
   const collapsed = state === 'collapsed';
@@ -93,15 +105,21 @@ export function AppSidebar() {
       className="border-r border-sidebar-border bg-sidebar z-40"
     >
       <SidebarContent className="bg-sidebar">
-        {/* Branding */}
-        <div className={`px-4 py-6 border-b border-sidebar-border bg-sidebar ${collapsed ? 'text-center' : ''}`}>
+        {/* Branding with Toggle */}
+        <div className={`px-4 py-6 border-b border-sidebar-border bg-sidebar flex items-center justify-between ${collapsed ? 'flex-col gap-4' : ''}`}>
           {!collapsed ? (
-            <div>
-              <h1 className="text-xl font-display font-bold text-sidebar-foreground">Planivo</h1>
-              <p className="text-xs text-sidebar-foreground/60 mt-1">{getRoleLabel()}</p>
-            </div>
+            <>
+              <div>
+                <h1 className="text-xl font-display font-bold text-sidebar-foreground">Planivo</h1>
+                <p className="text-xs text-sidebar-foreground/60 mt-1">{getRoleLabel()}</p>
+              </div>
+              <SidebarTrigger />
+            </>
           ) : (
-            <div className="text-lg font-display font-bold text-sidebar-foreground">P</div>
+            <>
+              <div className="text-lg font-display font-bold text-sidebar-foreground">P</div>
+              <SidebarTrigger />
+            </>
           )}
         </div>
 
@@ -147,6 +165,32 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
       </SidebarContent>
+
+      {/* Footer with User Actions */}
+      <SidebarFooter className="border-t border-sidebar-border bg-sidebar p-4">
+        {!collapsed ? (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 justify-between">
+              {hasAccess('notifications') && <NotificationBell />}
+              {hasAccess('messaging') && <MessagingPanel />}
+              <UserProfile />
+            </div>
+            <Button onClick={signOut} variant="outline" size="sm" className="w-full">
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
+            </Button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2 items-center">
+            {hasAccess('notifications') && <NotificationBell />}
+            {hasAccess('messaging') && <MessagingPanel />}
+            <UserProfile />
+            <Button onClick={signOut} variant="ghost" size="icon" className="w-full">
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </SidebarFooter>
     </Sidebar>
   );
 }
