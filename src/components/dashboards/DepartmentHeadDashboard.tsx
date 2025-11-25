@@ -14,6 +14,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import { z } from 'zod';
 
@@ -25,8 +27,11 @@ const staffSchema = z.object({
 const DepartmentHeadDashboard = () => {
   const { user } = useAuth();
   const [addStaffOpen, setAddStaffOpen] = useState(false);
+  const [addMode, setAddMode] = useState<'existing' | 'new'>('existing');
+  const [selectedUserId, setSelectedUserId] = useState('');
   const [staffEmail, setStaffEmail] = useState('');
   const [staffFullName, setStaffFullName] = useState('');
+  const [selectedSpecialtyId, setSelectedSpecialtyId] = useState('');
   const queryClient = useQueryClient();
 
   const { data: userRole, isLoading: roleLoading, error: roleError } = useQuery({
@@ -59,7 +64,7 @@ const DepartmentHeadDashboard = () => {
       
       const { data: staffRoles, error: rolesError } = await supabase
         .from('user_roles')
-        .select('user_id')
+        .select('user_id, specialty_id')
         .eq('department_id', userRole.department_id)
         .eq('role', 'staff');
       
@@ -73,14 +78,67 @@ const DepartmentHeadDashboard = () => {
         .in('id', userIds);
       
       if (profilesError) throw profilesError;
-      return profiles;
+      
+      // Combine profiles with specialty info
+      return profiles?.map(profile => {
+        const role = staffRoles.find(sr => sr.user_id === profile.id);
+        return { ...profile, specialty_id: role?.specialty_id };
+      });
+    },
+    enabled: !!userRole?.department_id,
+  });
+
+  // Fetch existing users from the facility
+  const { data: facilityUsers } = useQuery({
+    queryKey: ['facility-users', userRole?.facility_id],
+    queryFn: async () => {
+      if (!userRole?.facility_id) return [];
+      
+      const { data: facilityRoles, error } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('facility_id', userRole.facility_id);
+      
+      if (error) throw error;
+      if (!facilityRoles || facilityRoles.length === 0) return [];
+
+      const userIds = facilityRoles.map(fr => fr.user_id);
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', userIds);
+      
+      if (profilesError) throw profilesError;
+      
+      // Filter out users already in this department as staff
+      const currentStaffIds = departmentStaff?.map(s => s.id) || [];
+      return profiles?.filter(p => !currentStaffIds.includes(p.id)) || [];
+    },
+    enabled: !!userRole?.facility_id && !!departmentStaff,
+  });
+
+  // Fetch specialties (subdepartments) for this department
+  const { data: specialties } = useQuery({
+    queryKey: ['department-specialties', userRole?.department_id],
+    queryFn: async () => {
+      if (!userRole?.department_id) return [];
+      
+      const { data, error } = await supabase
+        .from('departments')
+        .select('*')
+        .eq('parent_department_id', userRole.department_id)
+        .eq('is_template', false)
+        .order('name');
+      
+      if (error) throw error;
+      return data;
     },
     enabled: !!userRole?.department_id,
   });
 
   const createStaffMutation = useMutation({
-    mutationFn: async (data: { email: string; full_name: string }) => {
-      const validated = staffSchema.parse(data);
+    mutationFn: async (data: { email: string; full_name: string; specialty_id?: string }) => {
+      const validated = staffSchema.parse({ email: data.email, full_name: data.full_name });
       
       const { data: result, error } = await supabase.functions.invoke('create-user', {
         body: {
@@ -89,6 +147,7 @@ const DepartmentHeadDashboard = () => {
           full_name: validated.full_name,
           role: 'staff',
           department_id: userRole?.department_id,
+          specialty_id: data.specialty_id || null,
           force_password_change: true,
         },
       });
@@ -98,23 +157,87 @@ const DepartmentHeadDashboard = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['department-staff'] });
+      queryClient.invalidateQueries({ queryKey: ['facility-users'] });
       toast.success('Staff member created successfully. Default password: 123456');
-      setStaffEmail('');
-      setStaffFullName('');
-      setAddStaffOpen(false);
+      resetForm();
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to create staff member');
     },
   });
 
-  const handleCreateStaff = (e: React.FormEvent) => {
+  const assignExistingUserMutation = useMutation({
+    mutationFn: async (data: { user_id: string; specialty_id?: string }) => {
+      // Check if user is already staff in this department
+      const { data: existing, error: checkError } = await supabase
+        .from('user_roles')
+        .select('id')
+        .eq('user_id', data.user_id)
+        .eq('department_id', userRole?.department_id)
+        .eq('role', 'staff')
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+      if (existing) {
+        throw new Error('This user is already a staff member in this department');
+      }
+
+      const { error } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: data.user_id,
+          role: 'staff',
+          workspace_id: userRole?.workspace_id,
+          facility_id: userRole?.facility_id,
+          department_id: userRole?.department_id,
+          specialty_id: data.specialty_id || null,
+        });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['department-staff'] });
+      queryClient.invalidateQueries({ queryKey: ['facility-users'] });
+      toast.success('User assigned to department successfully');
+      resetForm();
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to assign user');
+    },
+  });
+
+  const resetForm = () => {
+    setStaffEmail('');
+    setStaffFullName('');
+    setSelectedUserId('');
+    setSelectedSpecialtyId('');
+    setAddStaffOpen(false);
+    setAddMode('existing');
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!userRole?.department_id) {
       toast.error('Department not found');
       return;
     }
-    createStaffMutation.mutate({ email: staffEmail, full_name: staffFullName });
+
+    if (addMode === 'existing') {
+      if (!selectedUserId) {
+        toast.error('Please select a user');
+        return;
+      }
+      assignExistingUserMutation.mutate({ 
+        user_id: selectedUserId, 
+        specialty_id: selectedSpecialtyId || undefined 
+      });
+    } else {
+      createStaffMutation.mutate({ 
+        email: staffEmail, 
+        full_name: staffFullName,
+        specialty_id: selectedSpecialtyId || undefined
+      });
+    }
   };
 
   if (roleLoading) {
@@ -182,17 +305,25 @@ const DepartmentHeadDashboard = () => {
             <CardContent>
               {departmentStaff && departmentStaff.length > 0 ? (
                 <div className="space-y-2">
-                  {departmentStaff.map((staff: any) => (
-                    <div key={staff.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <p className="font-medium">{staff.full_name}</p>
-                        <p className="text-sm text-muted-foreground">{staff.email}</p>
+                  {departmentStaff.map((staff: any) => {
+                    const specialty = specialties?.find(s => s.id === staff.specialty_id);
+                    return (
+                      <div key={staff.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div>
+                          <p className="font-medium">{staff.full_name}</p>
+                          <p className="text-sm text-muted-foreground">{staff.email}</p>
+                          {specialty && (
+                            <Badge variant="outline" className="mt-1">
+                              {specialty.name}
+                            </Badge>
+                          )}
+                        </div>
+                        <Badge variant={staff.is_active ? 'default' : 'secondary'}>
+                          {staff.is_active ? 'Active' : 'Inactive'}
+                        </Badge>
                       </div>
-                      <Badge variant={staff.is_active ? 'default' : 'secondary'}>
-                        {staff.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
@@ -217,43 +348,127 @@ const DepartmentHeadDashboard = () => {
       </Tabs>
 
       {/* Add Staff Dialog */}
-      <Dialog open={addStaffOpen} onOpenChange={setAddStaffOpen}>
-        <DialogContent>
+      <Dialog open={addStaffOpen} onOpenChange={(open) => {
+        setAddStaffOpen(open);
+        if (!open) resetForm();
+      }}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Add Staff Member</DialogTitle>
             <DialogDescription>
-              Create a new staff member for your department. Default password will be 123456 and they will be required to change it on first login.
+              Assign an existing user or create a new staff member for your department.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleCreateStaff} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="staff-name">Full Name</Label>
-              <Input
-                id="staff-name"
-                placeholder="John Doe"
-                value={staffFullName}
-                onChange={(e) => setStaffFullName(e.target.value)}
-                required
-              />
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Mode Selection */}
+            <div className="space-y-3">
+              <Label>Add Method</Label>
+              <RadioGroup value={addMode} onValueChange={(value: 'existing' | 'new') => setAddMode(value)}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="existing" id="existing" />
+                  <Label htmlFor="existing" className="font-normal cursor-pointer">
+                    Select Existing User from Facility
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="new" id="new" />
+                  <Label htmlFor="new" className="font-normal cursor-pointer">
+                    Create New User
+                  </Label>
+                </div>
+              </RadioGroup>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="staff-email">Email</Label>
-              <Input
-                id="staff-email"
-                type="email"
-                placeholder="john.doe@example.com"
-                value={staffEmail}
-                onChange={(e) => setStaffEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="rounded-lg bg-muted p-4">
-              <p className="text-sm text-muted-foreground">
-                <strong>Note:</strong> The staff member will receive the email address you provide and a default password of <strong>123456</strong>. They will be required to change this password upon their first login.
-              </p>
-            </div>
-            <Button type="submit" className="w-full" disabled={createStaffMutation.isPending}>
-              {createStaffMutation.isPending ? 'Creating...' : 'Create Staff Member'}
+
+            {/* Existing User Selection */}
+            {addMode === 'existing' && (
+              <div className="space-y-2">
+                <Label htmlFor="user-select">Select User</Label>
+                <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                  <SelectTrigger id="user-select">
+                    <SelectValue placeholder="Choose from facility users" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    {facilityUsers && facilityUsers.length > 0 ? (
+                      facilityUsers.map((user: any) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.full_name} ({user.email})
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-users" disabled>
+                        No available users in facility
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Users already assigned to this department are filtered out
+                </p>
+              </div>
+            )}
+
+            {/* New User Creation */}
+            {addMode === 'new' && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="staff-name">Full Name</Label>
+                  <Input
+                    id="staff-name"
+                    placeholder="John Doe"
+                    value={staffFullName}
+                    onChange={(e) => setStaffFullName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="staff-email">Email</Label>
+                  <Input
+                    id="staff-email"
+                    type="email"
+                    placeholder="john.doe@example.com"
+                    value={staffEmail}
+                    onChange={(e) => setStaffEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="rounded-lg bg-muted p-3">
+                  <p className="text-xs text-muted-foreground">
+                    <strong>Note:</strong> Default password will be <strong>123456</strong> and must be changed on first login.
+                  </p>
+                </div>
+              </>
+            )}
+
+            {/* Specialty Selection */}
+            {specialties && specialties.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="specialty-select">
+                  Specialty <span className="text-muted-foreground">(Optional)</span>
+                </Label>
+                <Select value={selectedSpecialtyId} onValueChange={setSelectedSpecialtyId}>
+                  <SelectTrigger id="specialty-select">
+                    <SelectValue placeholder="Select specialty" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    {specialties.map((specialty: any) => (
+                      <SelectItem key={specialty.id} value={specialty.id}>
+                        {specialty.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={createStaffMutation.isPending || assignExistingUserMutation.isPending}
+            >
+              {createStaffMutation.isPending || assignExistingUserMutation.isPending 
+                ? 'Processing...' 
+                : addMode === 'existing' ? 'Assign User' : 'Create Staff Member'
+              }
             </Button>
           </form>
         </DialogContent>
