@@ -7,9 +7,12 @@ import VacationApprovalWorkflow from '@/components/vacation/VacationApprovalWork
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ClipboardList, CheckSquare, AlertCircle } from 'lucide-react';
 import VacationConflictDashboard from '@/components/vacation/VacationConflictDashboard';
+import { ModuleGuard } from '@/components/ModuleGuard';
+import { useModuleContext } from '@/contexts/ModuleContext';
 
 const WorkplaceSupervisorDashboard = () => {
   const { user } = useAuth();
+  const { hasAccess } = useModuleContext();
 
   const { data: userRole } = useQuery({
     queryKey: ['workplace-supervisor-role', user?.id],
@@ -38,37 +41,55 @@ const WorkplaceSupervisorDashboard = () => {
 
   return (
     <DashboardLayout title="Final Approvals" roleLabel="Workplace Supervisor" roleColor="text-success">
-      <Tabs defaultValue="tasks" className="space-y-4">
+      <Tabs defaultValue={hasAccess('task_management') ? 'tasks' : hasAccess('vacation_planning') ? 'approvals' : undefined} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="tasks">
-            <ClipboardList className="h-4 w-4 mr-2" />
-            Workspace Tasks
-          </TabsTrigger>
-          <TabsTrigger value="approvals">
-            <CheckSquare className="h-4 w-4 mr-2" />
-            Final Approvals
-          </TabsTrigger>
-          <TabsTrigger value="conflicts">
-            <AlertCircle className="h-4 w-4 mr-2" />
-            Vacation Conflicts
-          </TabsTrigger>
+          {hasAccess('task_management') && (
+            <TabsTrigger value="tasks">
+              <ClipboardList className="h-4 w-4 mr-2" />
+              Workspace Tasks
+            </TabsTrigger>
+          )}
+          {hasAccess('vacation_planning') && (
+            <TabsTrigger value="approvals">
+              <CheckSquare className="h-4 w-4 mr-2" />
+              Final Approvals
+            </TabsTrigger>
+          )}
+          {hasAccess('vacation_planning') && (
+            <TabsTrigger value="conflicts">
+              <AlertCircle className="h-4 w-4 mr-2" />
+              Vacation Conflicts
+            </TabsTrigger>
+          )}
         </TabsList>
 
-        <TabsContent value="tasks">
-          <TaskManager scopeType="workspace" scopeId={userRole.workspace_id} />
-        </TabsContent>
+        {hasAccess('task_management') && (
+          <TabsContent value="tasks">
+            <ModuleGuard moduleKey="task_management">
+              <TaskManager scopeType="workspace" scopeId={userRole.workspace_id} />
+            </ModuleGuard>
+          </TabsContent>
+        )}
 
-        <TabsContent value="approvals">
-          <VacationApprovalWorkflow 
-            approvalLevel={3} 
-            scopeType="workspace" 
-            scopeId={userRole.workspace_id} 
-          />
-        </TabsContent>
+        {hasAccess('vacation_planning') && (
+          <TabsContent value="approvals">
+            <ModuleGuard moduleKey="vacation_planning">
+              <VacationApprovalWorkflow 
+                approvalLevel={3} 
+                scopeType="workspace" 
+                scopeId={userRole.workspace_id} 
+              />
+            </ModuleGuard>
+          </TabsContent>
+        )}
 
-        <TabsContent value="conflicts">
-          <VacationConflictDashboard scopeType="workspace" scopeId={userRole.workspace_id} />
-        </TabsContent>
+        {hasAccess('vacation_planning') && (
+          <TabsContent value="conflicts">
+            <ModuleGuard moduleKey="vacation_planning">
+              <VacationConflictDashboard scopeType="workspace" scopeId={userRole.workspace_id} />
+            </ModuleGuard>
+          </TabsContent>
+        )}
       </Tabs>
     </DashboardLayout>
   );

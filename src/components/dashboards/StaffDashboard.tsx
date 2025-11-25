@@ -10,9 +10,12 @@ import { useAuth } from '@/lib/auth';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ModuleGuard } from '@/components/ModuleGuard';
+import { useModuleContext } from '@/contexts/ModuleContext';
 
 const StaffDashboard = () => {
   const { user } = useAuth();
+  const { hasAccess } = useModuleContext();
   const [plannerOpen, setPlannerOpen] = useState(false);
 
   const { data: workspaceSettings } = useQuery({
@@ -35,44 +38,56 @@ const StaffDashboard = () => {
 
   return (
     <DashboardLayout title="My Dashboard" roleLabel="Staff" roleColor="text-muted-foreground">
-      <Tabs defaultValue="tasks" className="space-y-4">
+      <Tabs defaultValue={hasAccess('task_management') ? 'tasks' : 'vacation'} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="tasks">
-            <ClipboardList className="h-4 w-4 mr-2" />
-            My Tasks
-          </TabsTrigger>
-          <TabsTrigger value="vacation">
-            <Calendar className="h-4 w-4 mr-2" />
-            My Vacation
-          </TabsTrigger>
+          {hasAccess('task_management') && (
+            <TabsTrigger value="tasks">
+              <ClipboardList className="h-4 w-4 mr-2" />
+              My Tasks
+            </TabsTrigger>
+          )}
+          {hasAccess('vacation_planning') && (
+            <TabsTrigger value="vacation">
+              <Calendar className="h-4 w-4 mr-2" />
+              My Vacation
+            </TabsTrigger>
+          )}
         </TabsList>
 
-        <TabsContent value="tasks">
-          <StaffTaskView />
-        </TabsContent>
+        {hasAccess('task_management') && (
+          <TabsContent value="tasks">
+            <ModuleGuard moduleKey="task_management">
+              <StaffTaskView />
+            </ModuleGuard>
+          </TabsContent>
+        )}
 
-        <TabsContent value="vacation" className="space-y-4">
-          <div className="flex justify-end">
-            <Dialog open={plannerOpen} onOpenChange={setPlannerOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Plan Vacation
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Plan Vacation</DialogTitle>
-                </DialogHeader>
-                <VacationPlanner 
-                  staffOnly={true} 
-                  maxSplits={workspaceSettings?.max_vacation_splits || 6}
-                />
-              </DialogContent>
-            </Dialog>
-          </div>
-          <VacationPlansList staffView={true} />
-        </TabsContent>
+        {hasAccess('vacation_planning') && (
+          <TabsContent value="vacation" className="space-y-4">
+            <ModuleGuard moduleKey="vacation_planning">
+              <div className="flex justify-end">
+                <Dialog open={plannerOpen} onOpenChange={setPlannerOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Plan Vacation
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Plan Vacation</DialogTitle>
+                    </DialogHeader>
+                    <VacationPlanner 
+                      staffOnly={true} 
+                      maxSplits={workspaceSettings?.max_vacation_splits || 6}
+                    />
+                  </DialogContent>
+                </Dialog>
+              </div>
+              <VacationPlansList staffView={true} />
+            </ModuleGuard>
+          </TabsContent>
+        )}
       </Tabs>
     </DashboardLayout>
   );

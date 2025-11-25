@@ -15,8 +15,12 @@ import VacationTypeManagement from '@/components/vacation/VacationTypeManagement
 import FacilityUserManagement from '@/components/admin/FacilityUserManagement';
 import CategoryDepartmentManagement from '@/components/admin/CategoryDepartmentManagement';
 import VacationConflictDashboard from '@/components/vacation/VacationConflictDashboard';
+import { ModuleGuard } from '@/components/ModuleGuard';
+import { useModuleContext } from '@/contexts/ModuleContext';
 
 const SuperAdminDashboard = () => {
+  const { modules, hasAccess } = useModuleContext();
+  
   const { data: workspaces, isLoading: workspacesLoading } = useQuery({
     queryKey: ['workspaces'],
     queryFn: async () => {
@@ -144,41 +148,51 @@ const SuperAdminDashboard = () => {
               <LayoutDashboard className="h-4 w-4" />
               <span className="hidden sm:inline">Dashboard</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="workspaces" 
-              className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
-            >
-              <Folders className="h-4 w-4" />
-              <span className="hidden sm:inline">Workspaces</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="users" 
-              className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
-            >
-              <UserCircle className="h-4 w-4" />
-              <span className="hidden sm:inline">Users</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="facilities" 
-              className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
-            >
-              <UsersRound className="h-4 w-4" />
-              <span className="hidden sm:inline">Facilities & Staff</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="vacation" 
-              className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
-            >
-              <Calendar className="h-4 w-4" />
-              <span className="hidden sm:inline">Vacation Types</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="structure" 
-              className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
-            >
-              <FolderTree className="h-4 w-4" />
-              <span className="hidden sm:inline">Categories & Departments</span>
-            </TabsTrigger>
+            {hasAccess('organization') && (
+              <TabsTrigger 
+                value="workspaces" 
+                className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+              >
+                <Folders className="h-4 w-4" />
+                <span className="hidden sm:inline">Workspaces</span>
+              </TabsTrigger>
+            )}
+            {hasAccess('user_management') && (
+              <TabsTrigger 
+                value="users" 
+                className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+              >
+                <UserCircle className="h-4 w-4" />
+                <span className="hidden sm:inline">Users</span>
+              </TabsTrigger>
+            )}
+            {hasAccess('organization') && (
+              <TabsTrigger 
+                value="facilities" 
+                className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+              >
+                <UsersRound className="h-4 w-4" />
+                <span className="hidden sm:inline">Facilities & Staff</span>
+              </TabsTrigger>
+            )}
+            {hasAccess('vacation_planning') && (
+              <TabsTrigger 
+                value="vacation" 
+                className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+              >
+                <Calendar className="h-4 w-4" />
+                <span className="hidden sm:inline">Vacation Types</span>
+              </TabsTrigger>
+            )}
+            {hasAccess('organization') && (
+              <TabsTrigger 
+                value="structure" 
+                className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+              >
+                <FolderTree className="h-4 w-4" />
+                <span className="hidden sm:inline">Categories & Departments</span>
+              </TabsTrigger>
+            )}
           </TabsList>
         </Card>
 
@@ -375,23 +389,33 @@ const SuperAdminDashboard = () => {
         </TabsContent>
 
         <TabsContent value="workspaces">
-          <WorkspaceManagement />
+          <ModuleGuard moduleKey="organization">
+            <WorkspaceManagement />
+          </ModuleGuard>
         </TabsContent>
 
         <TabsContent value="users">
-          <UserManagement />
+          <ModuleGuard moduleKey="user_management">
+            <UserManagement />
+          </ModuleGuard>
         </TabsContent>
 
         <TabsContent value="facilities">
-          <FacilityUserManagement />
+          <ModuleGuard moduleKey="organization">
+            <FacilityUserManagement />
+          </ModuleGuard>
         </TabsContent>
 
         <TabsContent value="vacation">
-          <VacationTypeManagement />
+          <ModuleGuard moduleKey="vacation_planning">
+            <VacationTypeManagement />
+          </ModuleGuard>
         </TabsContent>
 
         <TabsContent value="structure">
-          <CategoryDepartmentManagement />
+          <ModuleGuard moduleKey="organization">
+            <CategoryDepartmentManagement />
+          </ModuleGuard>
         </TabsContent>
       </Tabs>
     </DashboardLayout>
