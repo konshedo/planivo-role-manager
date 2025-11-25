@@ -34,6 +34,7 @@ const VacationPlanner = ({ departmentId, maxSplits = 6, staffOnly = false }: Vac
   const [selectedStaff, setSelectedStaff] = useState('');
   const [selectedVacationType, setSelectedVacationType] = useState('');
   const [notes, setNotes] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('');
   const [splits, setSplits] = useState<VacationSplit[]>([]);
 
   // Fetch current user's role to auto-detect behavior
@@ -53,9 +54,10 @@ const VacationPlanner = ({ departmentId, maxSplits = 6, staffOnly = false }: Vac
   });
 
   // Determine effective department ID and mode
-  const effectiveDepartmentId = departmentId || currentUserRole?.department_id;
   const isStaff = currentUserRole?.role === 'staff';
   const isDepartmentHead = currentUserRole?.role === 'department_head';
+  const isSuperAdmin = !currentUserRole && user?.id;
+  const effectiveDepartmentId = departmentId || selectedDepartment || currentUserRole?.department_id;
   const effectiveStaffOnly = staffOnly || isStaff;
 
   // Auto-select staff member if in staff-only mode
@@ -64,6 +66,20 @@ const VacationPlanner = ({ departmentId, maxSplits = 6, staffOnly = false }: Vac
       setSelectedStaff(user.id);
     }
   }, [effectiveStaffOnly, user?.id, selectedStaff]);
+
+  // Fetch all departments for Super Admin
+  const { data: allDepartments } = useQuery({
+    queryKey: ['all-departments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('departments')
+        .select('id, name, facilities(name)')
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!isSuperAdmin,
+  });
 
   // Real-time subscriptions for live updates
   useRealtimeSubscription({
@@ -194,11 +210,17 @@ const VacationPlanner = ({ departmentId, maxSplits = 6, staffOnly = false }: Vac
     setSelectedStaff('');
     setSelectedVacationType('');
     setNotes('');
+    setSelectedDepartment('');
     setSplits([]);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (isSuperAdmin && !selectedDepartment) {
+      toast.error('Please select a department');
+      return;
+    }
     
     if (!effectiveStaffOnly && !selectedStaff) {
       toast.error('Please select staff member');
@@ -237,7 +259,25 @@ const VacationPlanner = ({ departmentId, maxSplits = 6, staffOnly = false }: Vac
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {!effectiveStaffOnly && (
+          {isSuperAdmin && !selectedDepartment && (
+            <div>
+              <Label>Select Department *</Label>
+              <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a department" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allDepartments?.map((dept: any) => (
+                    <SelectItem key={dept.id} value={dept.id}>
+                      {dept.name} {dept.facilities?.name && `(${dept.facilities.name})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {!effectiveStaffOnly && effectiveDepartmentId && (
             <div>
               <Label>Staff Member</Label>
               <Select value={selectedStaff} onValueChange={setSelectedStaff}>
