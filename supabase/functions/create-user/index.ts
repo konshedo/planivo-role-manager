@@ -14,6 +14,7 @@ interface CreateUserRequest {
   workspace_id?: string;
   facility_id?: string;
   department_id?: string;
+  specialty_id?: string;
   force_password_change?: boolean;
 }
 
@@ -47,22 +48,8 @@ serve(async (req) => {
       );
     }
 
-    // Check if requesting user is super admin
-    const { data: roles, error: roleError } = await supabaseClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", requestingUser.id)
-      .eq("role", "super_admin");
-
-    if (roleError || !roles || roles.length === 0) {
-      console.error("Role check failed:", roleError);
-      return new Response(
-        JSON.stringify({ error: "Forbidden: Super Admin access required" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const { email, password, full_name, role, workspace_id, facility_id, department_id, force_password_change }: CreateUserRequest = await req.json();
+    // Parse request body first
+    const { email, password, full_name, role, workspace_id, facility_id, department_id, specialty_id, force_password_change }: CreateUserRequest = await req.json();
 
     // Validate required fields
     if (!email || !password || !full_name || !role) {
@@ -70,6 +57,33 @@ serve(async (req) => {
         JSON.stringify({ error: "Missing required fields" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Check if requesting user has permission (super admin, general admin, or department head)
+    const { data: roles, error: roleError } = await supabaseClient
+      .from("user_roles")
+      .select("role, department_id")
+      .eq("user_id", requestingUser.id)
+      .in("role", ["super_admin", "general_admin", "department_head"]);
+
+    if (roleError || !roles || roles.length === 0) {
+      console.error("Role check failed:", roleError);
+      return new Response(
+        JSON.stringify({ error: "Forbidden: Admin or Department Head access required" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // If department head, verify they can only create staff in their department
+    const isDepartmentHead = roles.some(r => r.role === "department_head");
+    if (isDepartmentHead && role === "staff") {
+      const departmentHeadRole = roles.find(r => r.role === "department_head");
+      if (department_id && department_id !== departmentHeadRole?.department_id) {
+        return new Response(
+          JSON.stringify({ error: "Forbidden: Can only add staff to your own department" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Create the user using admin API
@@ -131,6 +145,7 @@ serve(async (req) => {
           workspace_id: workspace_id || null,
           facility_id: facility_id || null,
           department_id: department_id || null,
+          specialty_id: specialty_id || null,
           created_by: requestingUser.id,
         },
       ]);
