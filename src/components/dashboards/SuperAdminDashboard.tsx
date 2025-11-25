@@ -1,7 +1,7 @@
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Building2, Plus, Calendar, ClipboardList, CheckCircle, XCircle, Clock, TrendingUp, Building, LayoutDashboard, Folders, UserCircle, UsersRound, FolderTree, AlertCircle } from 'lucide-react';
+import { Users, Building2, Plus, Calendar, ClipboardList, CheckCircle, XCircle, Clock, TrendingUp, Building, LayoutDashboard, Folders, UserCircle, UsersRound, FolderTree, AlertCircle, Settings } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,6 +15,7 @@ import VacationTypeManagement from '@/components/vacation/VacationTypeManagement
 import FacilityUserManagement from '@/components/admin/FacilityUserManagement';
 import CategoryDepartmentManagement from '@/components/admin/CategoryDepartmentManagement';
 import VacationConflictDashboard from '@/components/vacation/VacationConflictDashboard';
+import ModuleManagement from '@/components/admin/ModuleManagement';
 import { ModuleGuard } from '@/components/ModuleGuard';
 import { useModuleContext } from '@/contexts/ModuleContext';
 
@@ -140,13 +141,20 @@ const SuperAdminDashboard = () => {
     <DashboardLayout title="System Overview" roleLabel="Super Admin" roleColor="text-primary">
       <Tabs defaultValue="dashboard" className="space-y-6">
         <Card className="border-2">
-          <TabsList className="w-full h-auto p-2 bg-transparent grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+          <TabsList className="w-full h-auto p-2 bg-transparent grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2">
             <TabsTrigger 
               value="dashboard" 
               className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
             >
               <LayoutDashboard className="h-4 w-4" />
               <span className="hidden sm:inline">Dashboard</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="modules" 
+              className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+            >
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Modules</span>
             </TabsTrigger>
             {hasAccess('organization') && (
               <TabsTrigger 
@@ -386,6 +394,10 @@ const SuperAdminDashboard = () => {
               <VacationConflictDashboard scopeType="all" />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="modules">
+          <ModuleManagement />
         </TabsContent>
 
         <TabsContent value="workspaces">
