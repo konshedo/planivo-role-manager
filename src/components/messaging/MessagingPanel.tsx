@@ -456,8 +456,8 @@ const MessagingPanel = () => {
 
   const getConversationTitle = (convo: Conversation) => {
     if (convo.title) return convo.title;
-    const otherParticipants = convo.participants.filter(p => p.id !== user?.id);
-    return otherParticipants.map(p => p.full_name).join(', ') || 'Unknown';
+    const otherParticipants = convo.participants.filter(p => p?.id !== user?.id);
+    return otherParticipants.map(p => p?.full_name || 'Unknown').join(', ') || 'Unknown';
   };
 
   const selectedConvo = conversations.find(c => c.id === selectedConversation);
@@ -506,9 +506,9 @@ const MessagingPanel = () => {
                                 }}
                               />
                               <Label className="flex-1 cursor-pointer">
-                                {wsUser.full_name}
+                                {wsUser.full_name || 'Unknown User'}
                                 <span className="text-xs text-muted-foreground block">
-                                  {wsUser.email}
+                                  {wsUser.email || 'No email'}
                                 </span>
                               </Label>
                             </div>
@@ -620,7 +620,7 @@ const MessagingPanel = () => {
                       >
                         <Avatar className="h-8 w-8 flex-shrink-0">
                           <AvatarFallback className="text-xs">
-                            {message.sender.full_name[0]}
+                            {message.sender?.full_name?.[0] || '?'}
                           </AvatarFallback>
                         </Avatar>
                         <div className={cn(
@@ -628,7 +628,7 @@ const MessagingPanel = () => {
                           isOwn && "items-end"
                         )}>
                           {!isOwn && (
-                            <span className="text-xs font-medium">{message.sender.full_name}</span>
+                            <span className="text-xs font-medium">{message.sender?.full_name || 'Unknown'}</span>
                           )}
                           <div className={cn(
                             "rounded-lg px-3 py-2",

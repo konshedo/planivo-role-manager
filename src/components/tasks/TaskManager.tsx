@@ -46,7 +46,7 @@ const TaskManager = ({ scopeType, scopeId }: TaskManagerProps) => {
     queryFn: async () => {
       let query = supabase
         .from('user_roles')
-        .select('user_id, profiles(id, full_name, email)')
+        .select('user_id')
         .eq('role', 'staff');
 
       if (scopeType === 'workspace') {
@@ -57,9 +57,29 @@ const TaskManager = ({ scopeType, scopeId }: TaskManagerProps) => {
         query = query.eq('department_id', scopeId);
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
-      return data;
+      const { data: roles, error: rolesError } = await query;
+      if (rolesError) throw rolesError;
+
+      if (!roles || roles.length === 0) return [];
+
+      const userIds = roles.map(r => r.user_id);
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', userIds);
+      
+      if (profilesError) throw profilesError;
+
+      const profilesArray = profiles || [];
+      
+      return roles.map(role => ({
+        user_id: role.user_id,
+        profiles: profilesArray.find(p => p.id === role.user_id) || { 
+          id: role.user_id, 
+          full_name: 'Unknown User', 
+          email: 'No email' 
+        }
+      }));
     },
   });
 
@@ -68,7 +88,7 @@ const TaskManager = ({ scopeType, scopeId }: TaskManagerProps) => {
     queryFn: async () => {
       let query = supabase
         .from('tasks')
-        .select('*, task_assignments(id, assigned_to, status, profiles(full_name))')
+        .select('*')
         .eq('scope_type', scopeType);
 
       if (scopeType === 'workspace') {
@@ -79,9 +99,45 @@ const TaskManager = ({ scopeType, scopeId }: TaskManagerProps) => {
         query = query.eq('department_id', scopeId);
       }
 
-      const { data, error } = await query.order('created_at', { ascending: false });
-      if (error) throw error;
-      return data;
+      const { data: tasksData, error: tasksError } = await query.order('created_at', { ascending: false });
+      if (tasksError) throw tasksError;
+
+      if (!tasksData || tasksData.length === 0) return [];
+
+      // Fetch task assignments separately
+      const taskIds = tasksData.map(t => t.id);
+      const { data: assignments, error: assignError } = await supabase
+        .from('task_assignments')
+        .select('id, task_id, assigned_to, status')
+        .in('task_id', taskIds);
+      
+      if (assignError) throw assignError;
+
+      // Fetch profiles for assigned users
+      const assignedUserIds = [...new Set((assignments || []).map(a => a.assigned_to))];
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', assignedUserIds);
+      
+      if (profilesError) throw profilesError;
+
+      const profilesArray = profiles || [];
+
+      // Combine data
+      return tasksData.map(task => ({
+        ...task,
+        task_assignments: (assignments || [])
+          .filter(a => a.task_id === task.id)
+          .map(a => ({
+            ...a,
+            profiles: profilesArray.find(p => p.id === a.assigned_to) || {
+              id: a.assigned_to,
+              full_name: 'Unknown User',
+              email: 'No email'
+            }
+          }))
+      }));
     },
   });
 
@@ -257,7 +313,7 @@ const TaskManager = ({ scopeType, scopeId }: TaskManagerProps) => {
                       }}
                     />
                     <span className="text-sm">
-                      {staff.profiles.full_name} ({staff.profiles.email})
+                      {staff.profiles?.full_name || 'Unknown User'} ({staff.profiles?.email || 'No email'})
                     </span>
                   </label>
                 ))}
@@ -308,7 +364,7 @@ const TaskManager = ({ scopeType, scopeId }: TaskManagerProps) => {
                           key={assignment.id}
                           className="text-xs bg-accent px-2 py-1 rounded"
                         >
-                          {assignment.profiles.full_name} ({assignment.status})
+                          {assignment.profiles?.full_name || 'Unknown User'} ({assignment.status})
                         </span>
                       ))}
                     </div>
