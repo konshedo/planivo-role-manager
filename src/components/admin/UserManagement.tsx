@@ -82,10 +82,16 @@ const UserManagement = () => {
 
       if (profilesError) throw profilesError;
 
-      // Fetch all user roles
+      // Fetch all user roles with related data
       const { data: userRoles, error: rolesError } = await supabase
         .from('user_roles')
-        .select('*, workspaces(name)');
+        .select(`
+          *,
+          workspaces(name),
+          facilities(name),
+          departments(name),
+          specialties:specialty_id(name)
+        `);
 
       if (rolesError) throw rolesError;
 
@@ -195,13 +201,15 @@ const UserManagement = () => {
       role, 
       workspaceId, 
       facilityId, 
-      departmentId 
+      departmentId,
+      specialtyId
     }: { 
       userId: string; 
       role: string; 
       workspaceId?: string; 
       facilityId?: string; 
-      departmentId?: string; 
+      departmentId?: string;
+      specialtyId?: string;
     }) => {
       const { data, error } = await supabase
         .from('user_roles')
@@ -211,6 +219,7 @@ const UserManagement = () => {
           workspace_id: workspaceId || null,
           facility_id: facilityId || null,
           department_id: departmentId || null,
+          specialty_id: specialtyId || null,
         })
         .select();
 
@@ -232,7 +241,13 @@ const UserManagement = () => {
 
         const { data: userRoles } = await supabase
           .from('user_roles')
-          .select('*, workspaces(name)')
+          .select(`
+            *,
+            workspaces(name),
+            facilities(name),
+            departments(name),
+            specialties:specialty_id(name)
+          `)
           .eq('user_id', editingUser.id);
 
         if (profiles && userRoles) {
@@ -279,7 +294,13 @@ const UserManagement = () => {
 
         const { data: userRoles } = await supabase
           .from('user_roles')
-          .select('*, workspaces(name)')
+          .select(`
+            *,
+            workspaces(name),
+            facilities(name),
+            departments(name),
+            specialties:specialty_id(name)
+          `)
           .eq('user_id', editingUser.id);
 
         if (profiles && userRoles) {
@@ -317,6 +338,22 @@ const UserManagement = () => {
   const [newWorkspaceId, setNewWorkspaceId] = useState<string>('');
   const [newFacilityId, setNewFacilityId] = useState<string>('');
   const [newDepartmentId, setNewDepartmentId] = useState<string>('');
+  const [newSubDepartmentId, setNewSubDepartmentId] = useState<string>('');
+
+  // Fetch subdepartments (departments with parent_department_id)
+  const { data: subdepartments } = useQuery({
+    queryKey: ['subdepartments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('departments')
+        .select('*, parent_departments:parent_department_id(name)')
+        .not('parent_department_id', 'is', null)
+        .is('is_template', false)
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const handleAddRole = () => {
     if (!editingUser) return;
@@ -327,6 +364,7 @@ const UserManagement = () => {
       workspaceId: newWorkspaceId || undefined,
       facilityId: newFacilityId || undefined,
       departmentId: newDepartmentId || undefined,
+      specialtyId: newSubDepartmentId || undefined,
     });
 
     // Reset form
@@ -334,6 +372,7 @@ const UserManagement = () => {
     setNewWorkspaceId('');
     setNewFacilityId('');
     setNewDepartmentId('');
+    setNewSubDepartmentId('');
   };
 
   const handleDeleteRole = (roleId: string) => {
@@ -349,7 +388,12 @@ const UserManagement = () => {
 
   const getFilteredDepartments = () => {
     if (!newFacilityId || !departments) return [];
-    return departments.filter(d => d.facility_id === newFacilityId);
+    return departments.filter(d => d.facility_id === newFacilityId && !d.parent_department_id);
+  };
+
+  const getFilteredSubDepartments = () => {
+    if (!newDepartmentId || !subdepartments) return [];
+    return subdepartments.filter(sd => sd.parent_department_id === newDepartmentId);
   };
 
   return (
@@ -507,11 +551,20 @@ const UserManagement = () => {
                             <div key={roleData.id} className="flex items-center justify-between p-3 border rounded-lg">
                               <div className="space-y-1">
                                 <Badge variant="outline">{roleData.role.replace('_', ' ')}</Badge>
-                                {roleData.workspaces && (
-                                  <p className="text-sm text-muted-foreground">
-                                    Workspace: {roleData.workspaces.name}
-                                  </p>
-                                )}
+                                <div className="text-sm text-muted-foreground space-y-0.5">
+                                  {roleData.workspaces && (
+                                    <p>Workspace: {roleData.workspaces.name}</p>
+                                  )}
+                                  {roleData.facilities && (
+                                    <p>Facility: {roleData.facilities.name}</p>
+                                  )}
+                                  {roleData.departments && (
+                                    <p>Department: {roleData.departments.name}</p>
+                                  )}
+                                  {roleData.specialties && (
+                                    <p>Specialty: {roleData.specialties.name}</p>
+                                  )}
+                                </div>
                               </div>
                               <Button
                                 variant="ghost"
@@ -537,7 +590,7 @@ const UserManagement = () => {
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="bg-background z-50">
                             <SelectItem value="super_admin">Super Admin</SelectItem>
                             <SelectItem value="general_admin">General Admin</SelectItem>
                             <SelectItem value="workplace_supervisor">Workplace Supervisor</SelectItem>
@@ -556,11 +609,12 @@ const UserManagement = () => {
                               setNewWorkspaceId(val);
                               setNewFacilityId('');
                               setNewDepartmentId('');
+                              setNewSubDepartmentId('');
                             }}>
-                              <SelectTrigger>
+                              <SelectTrigger className="bg-background">
                                 <SelectValue placeholder="Select workspace" />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent className="bg-background z-50">
                                 {workspaces?.map((workspace) => (
                                   <SelectItem key={workspace.id} value={workspace.id}>
                                     {workspace.name}
@@ -570,17 +624,18 @@ const UserManagement = () => {
                             </Select>
                           </div>
 
-                          {(newRole === 'facility_supervisor' || newRole === 'department_head') && newWorkspaceId && (
+                          {newWorkspaceId && (
                             <div className="space-y-2">
-                              <Label>Facility</Label>
+                              <Label>Facility (Optional)</Label>
                               <Select value={newFacilityId} onValueChange={(val) => {
                                 setNewFacilityId(val);
                                 setNewDepartmentId('');
+                                setNewSubDepartmentId('');
                               }}>
-                                <SelectTrigger>
+                                <SelectTrigger className="bg-background">
                                   <SelectValue placeholder="Select facility" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="bg-background z-50">
                                   {getFilteredFacilities().map((facility) => (
                                     <SelectItem key={facility.id} value={facility.id}>
                                       {facility.name}
@@ -591,17 +646,38 @@ const UserManagement = () => {
                             </div>
                           )}
 
-                          {newRole === 'department_head' && newFacilityId && (
+                          {newFacilityId && (
                             <div className="space-y-2">
-                              <Label>Department</Label>
-                              <Select value={newDepartmentId} onValueChange={setNewDepartmentId}>
-                                <SelectTrigger>
+                              <Label>Department (Optional)</Label>
+                              <Select value={newDepartmentId} onValueChange={(val) => {
+                                setNewDepartmentId(val);
+                                setNewSubDepartmentId('');
+                              }}>
+                                <SelectTrigger className="bg-background">
                                   <SelectValue placeholder="Select department" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="bg-background z-50">
                                   {getFilteredDepartments().map((dept) => (
                                     <SelectItem key={dept.id} value={dept.id}>
                                       {dept.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+
+                          {newDepartmentId && getFilteredSubDepartments().length > 0 && (
+                            <div className="space-y-2">
+                              <Label>Subdepartment / Specialty (Optional)</Label>
+                              <Select value={newSubDepartmentId} onValueChange={setNewSubDepartmentId}>
+                                <SelectTrigger className="bg-background">
+                                  <SelectValue placeholder="Select subdepartment" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-background z-50">
+                                  {getFilteredSubDepartments().map((subdept) => (
+                                    <SelectItem key={subdept.id} value={subdept.id}>
+                                      {subdept.name}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
