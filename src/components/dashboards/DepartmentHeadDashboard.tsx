@@ -15,7 +15,7 @@ const DepartmentHeadDashboard = () => {
   const { hasAccess } = useModuleContext();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
-  const activeTab = searchParams.get('tab') || 'staff';
+  const activeTab = searchParams.get('tab') || (hasAccess('staff_management') ? 'staff' : hasAccess('vacation_planning') ? 'vacation' : 'tasks');
 
   const { data: userRole, isLoading: roleLoading, error: roleError } = useQuery({
     queryKey: ['department-head-role', user?.id],
@@ -63,10 +63,31 @@ const DepartmentHeadDashboard = () => {
 
   return (
     <>
-      <PageHeader 
-        title="Team Management" 
-        description="Manage your department's staff, vacations, and tasks"
-      />
+      {activeTab === 'staff' && (
+        <PageHeader 
+          title="Staff Management" 
+          description="Manage your department's staff members"
+        />
+      )}
+      {activeTab === 'vacation' && (
+        <PageHeader 
+          title="Vacation Planning" 
+          description="Plan and manage staff vacation schedules"
+        />
+      )}
+      {activeTab === 'tasks' && (
+        <PageHeader 
+          title="Department Tasks" 
+          description="Assign and track department tasks"
+        />
+      )}
+      {!['staff', 'vacation', 'tasks'].includes(activeTab) && (
+        <PageHeader 
+          title="Team Management" 
+          description="Manage your department"
+        />
+      )}
+      
       <div className="space-y-4">
         {activeTab === 'staff' && hasAccess('staff_management') && (
           <ModuleGuard moduleKey="staff_management">
@@ -84,6 +105,13 @@ const DepartmentHeadDashboard = () => {
           <ModuleGuard moduleKey="task_management">
             <TaskHub />
           </ModuleGuard>
+        )}
+
+        {/* Show message if no valid tab content */}
+        {!hasAccess('staff_management') && !hasAccess('vacation_planning') && !hasAccess('task_management') && (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No modules available. Contact your administrator.</p>
+          </div>
         )}
       </div>
     </>

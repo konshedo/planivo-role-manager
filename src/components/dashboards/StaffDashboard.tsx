@@ -19,7 +19,7 @@ const StaffDashboard = () => {
   const [plannerOpen, setPlannerOpen] = useState(false);
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
-  const activeTab = searchParams.get('tab') || 'tasks';
+  const activeTab = searchParams.get('tab') || (hasAccess('task_management') ? 'tasks' : 'vacation');
 
   const { data: workspaceSettings } = useQuery({
     queryKey: ['staff-workspace-settings', user?.id],
@@ -41,10 +41,18 @@ const StaffDashboard = () => {
 
   return (
     <>
-      <PageHeader 
-        title="My Dashboard" 
-        description="View and manage your tasks and vacation plans"
-      />
+      {activeTab === 'tasks' && (
+        <PageHeader 
+          title="My Tasks" 
+          description="View and complete your assigned tasks"
+        />
+      )}
+      {activeTab === 'vacation' && (
+        <PageHeader 
+          title="My Vacation" 
+          description="Plan and manage your vacation requests"
+        />
+      )}
       
       <div className="space-y-4">
         {activeTab === 'tasks' && hasAccess('task_management') && (

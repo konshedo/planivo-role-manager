@@ -139,10 +139,48 @@ const SuperAdminDashboard = () => {
 
   return (
     <>
-      <PageHeader 
-        title="System Overview" 
-        description="Manage your entire system from one centralized dashboard"
-      />
+      {activeTab === 'dashboard' && (
+        <PageHeader 
+          title="System Overview" 
+          description="Manage your entire system from one centralized dashboard"
+        />
+      )}
+      {activeTab === 'modules' && (
+        <PageHeader 
+          title="Module Management" 
+          description="Control system-wide module access and permissions"
+        />
+      )}
+      {activeTab === 'validator' && (
+        <PageHeader 
+          title="System Validator" 
+          description="Validate module system configuration and integrity"
+        />
+      )}
+      {activeTab === 'organization' && (
+        <PageHeader 
+          title="Organization Management" 
+          description="Manage workspaces, facilities, and departments"
+        />
+      )}
+      {activeTab === 'users' && (
+        <PageHeader 
+          title="User Management" 
+          description="Manage system users, roles, and permissions"
+        />
+      )}
+      {activeTab === 'vacation' && (
+        <PageHeader 
+          title="Vacation Management" 
+          description="Manage vacation types, plans, and approvals"
+        />
+      )}
+      {!['dashboard', 'modules', 'validator', 'organization', 'users', 'vacation'].includes(activeTab) && (
+        <PageHeader 
+          title="System Overview" 
+          description="Manage your entire system from one centralized dashboard"
+        />
+      )}
       
       <div className="space-y-6">
         {activeTab === 'dashboard' && (
@@ -331,6 +369,13 @@ const SuperAdminDashboard = () => {
           <ModuleGuard moduleKey="vacation_planning">
             <VacationHub />
           </ModuleGuard>
+        )}
+
+        {/* Show empty state if no valid tab content */}
+        {!['dashboard', 'modules', 'validator', 'organization', 'users', 'vacation'].includes(activeTab) && (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Content not found. Please select a valid module from the sidebar.</p>
+          </div>
         )}
       </div>
     </>
