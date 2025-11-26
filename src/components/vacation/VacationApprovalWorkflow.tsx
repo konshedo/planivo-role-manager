@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
 import { CheckCircle2, XCircle, Calendar, User, FileText, Clock, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -40,6 +42,8 @@ const VacationApprovalWorkflow = ({ approvalLevel, scopeType, scopeId }: Vacatio
   const [conflictReason, setConflictReason] = useState('');
   const [previousLevelConflicts, setPreviousLevelConflicts] = useState<any[]>([]);
   const [showPreviousConflictDialog, setShowPreviousConflictDialog] = useState(false);
+  const [selectedSplits, setSelectedSplits] = useState<Set<string>>(new Set());
+  const [splitConflicts, setSplitConflicts] = useState<Map<string, any[]>>(new Map());
 
   // Fetch pending vacation plans based on level
   const { data: pendingPlans, isLoading } = useQuery({
@@ -153,7 +157,8 @@ const VacationApprovalWorkflow = ({ approvalLevel, scopeType, scopeId }: Vacatio
       comments, 
       hasConflict = false, 
       conflictReason = '', 
-      conflictingPlans = [] 
+      conflictingPlans = [],
+      selectedSplitIds = [] 
     }: any) => {
       // Check for conflicts before approval (only for Department Head level)
       if (action === 'approve' && approvalLevel === 1 && !hasConflict) {
@@ -170,7 +175,7 @@ const VacationApprovalWorkflow = ({ approvalLevel, scopeType, scopeId }: Vacatio
           });
 
           if (conflicts && Array.isArray(conflicts) && conflicts.length > 0) {
-            // Return conflicts to trigger dialog
+            // Return per-split conflicts
             throw new Error('CONFLICTS_DETECTED:' + JSON.stringify(conflicts));
           }
         }
@@ -188,6 +193,33 @@ const VacationApprovalWorkflow = ({ approvalLevel, scopeType, scopeId }: Vacatio
         if (previousApprovals && previousApprovals.length > 0) {
           throw new Error('PREVIOUS_CONFLICTS:' + JSON.stringify(previousApprovals));
         }
+      }
+
+      // Get all splits for the plan
+      const { data: allSplits } = await supabase
+        .from('vacation_splits')
+        .select('*')
+        .eq('vacation_plan_id', planId);
+
+      // Update split statuses based on selection
+      if (allSplits && selectedSplitIds.length > 0) {
+        for (const split of allSplits) {
+          const newSplitStatus = selectedSplitIds.includes(split.id) ? 'approved' : 'rejected';
+          await supabase
+            .from('vacation_splits')
+            .update({ status: newSplitStatus })
+            .eq('id', split.id);
+        }
+
+        // Calculate new total days from approved splits
+        const approvedSplits = allSplits.filter(s => selectedSplitIds.includes(s.id));
+        const newTotalDays = approvedSplits.reduce((sum, split) => sum + split.days, 0);
+
+        // Update vacation plan total_days
+        await supabase
+          .from('vacation_plans')
+          .update({ total_days: newTotalDays })
+          .eq('id', planId);
       }
 
       // Create or update approval record
@@ -223,11 +255,17 @@ const VacationApprovalWorkflow = ({ approvalLevel, scopeType, scopeId }: Vacatio
       if (action === 'reject') {
         newStatus = 'rejected';
       } else {
-        // Progress to next approval level
-        newStatus = 
-          approvalLevel === 1 ? 'facility_pending' :
-          approvalLevel === 2 ? 'workspace_pending' : 
-          'approved';
+        // Check if all splits were rejected
+        const hasApprovedSplits = selectedSplitIds.length > 0;
+        if (!hasApprovedSplits) {
+          newStatus = 'rejected';
+        } else {
+          // Progress to next approval level
+          newStatus = 
+            approvalLevel === 1 ? 'facility_pending' :
+            approvalLevel === 2 ? 'workspace_pending' : 
+            'approved';
+        }
       }
 
       const { error: updateError } = await supabase
@@ -246,11 +284,23 @@ const VacationApprovalWorkflow = ({ approvalLevel, scopeType, scopeId }: Vacatio
       setComments('');
       setConflictReason('');
       setConflictData([]);
+      setSelectedSplits(new Set());
+      setSplitConflicts(new Map());
     },
     onError: (error: any) => {
       if (error.message.startsWith('CONFLICTS_DETECTED:')) {
         const conflictsJson = error.message.replace('CONFLICTS_DETECTED:', '');
         const conflicts = JSON.parse(conflictsJson);
+        
+        // Build split conflicts map
+        const conflictsMap = new Map<string, any[]>();
+        conflicts.forEach((item: any) => {
+          if (item.conflicts && item.conflicts.length > 0) {
+            conflictsMap.set(item.split_id, item.conflicts);
+          }
+        });
+        
+        setSplitConflicts(conflictsMap);
         setConflictData(conflicts);
         setShowApprovalDialog(false);
         setShowConflictDialog(true);
@@ -269,15 +319,41 @@ const VacationApprovalWorkflow = ({ approvalLevel, scopeType, scopeId }: Vacatio
   const handleApprovalAction = (plan: any, action: 'approve' | 'reject') => {
     setSelectedPlan(plan);
     setApprovalAction(action);
+    
+    // Initialize selected splits with all splits
+    const allSplitIds = new Set<string>(plan.vacation_splits.map((s: any) => s.id));
+    setSelectedSplits(allSplitIds);
+    setSplitConflicts(new Map());
+    
     setShowApprovalDialog(true);
+  };
+
+  const toggleSplitSelection = (splitId: string) => {
+    setSelectedSplits(prev => {
+      const newSet = new Set<string>(prev);
+      if (newSet.has(splitId)) {
+        newSet.delete(splitId);
+      } else {
+        newSet.add(splitId);
+      }
+      return newSet;
+    });
   };
 
   const confirmApproval = () => {
     if (!selectedPlan) return;
+    
+    // Check if at least one split is selected
+    if (selectedSplits.size === 0) {
+      toast.error('Please select at least one vacation segment to approve');
+      return;
+    }
+    
     approvalMutation.mutate({
       planId: selectedPlan.id,
       action: approvalAction,
       comments,
+      selectedSplitIds: Array.from(selectedSplits),
     });
   };
 
@@ -286,6 +362,12 @@ const VacationApprovalWorkflow = ({ approvalLevel, scopeType, scopeId }: Vacatio
       toast.error('Please provide a reason for approving despite conflicts');
       return;
     }
+    
+    if (selectedSplits.size === 0) {
+      toast.error('Please select at least one vacation segment to approve');
+      return;
+    }
+    
     approvalMutation.mutate({
       planId: selectedPlan.id,
       action: 'approve',
@@ -293,6 +375,7 @@ const VacationApprovalWorkflow = ({ approvalLevel, scopeType, scopeId }: Vacatio
       hasConflict: true,
       conflictReason,
       conflictingPlans: conflictData,
+      selectedSplitIds: Array.from(selectedSplits),
     });
   };
 
@@ -393,7 +476,7 @@ const VacationApprovalWorkflow = ({ approvalLevel, scopeType, scopeId }: Vacatio
                     <div>
                       <p className="text-sm font-medium mb-2 flex items-center gap-2">
                         <Calendar className="h-4 w-4" />
-                        Vacation Splits ({plan.vacation_splits.length})
+                        Vacation Segments ({plan.vacation_splits.length})
                       </p>
                       <div className="space-y-2">
                         {plan.vacation_splits.map((split: any, index: number) => (
@@ -401,14 +484,24 @@ const VacationApprovalWorkflow = ({ approvalLevel, scopeType, scopeId }: Vacatio
                             key={split.id}
                             className="flex items-center justify-between p-2 bg-accent rounded"
                           >
-                            <span className="text-sm">Split {index + 1}</span>
+                            <span className="text-sm">Segment {index + 1}</span>
                             <span className="text-sm font-medium">
                               {format(new Date(split.start_date), 'PPP')} →{' '}
                               {format(new Date(split.end_date), 'PPP')}
                             </span>
-                            <span className="text-sm text-muted-foreground">
-                              {split.days} days
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-muted-foreground">
+                                {split.days} days
+                              </span>
+                              {split.status && split.status !== 'pending' && (
+                                <Badge className={cn(
+                                  split.status === 'approved' && 'bg-success text-success-foreground',
+                                  split.status === 'rejected' && 'bg-destructive text-destructive-foreground'
+                                )}>
+                                  {split.status}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -492,6 +585,59 @@ const VacationApprovalWorkflow = ({ approvalLevel, scopeType, scopeId }: Vacatio
 
             <Separator />
 
+            {/* Vacation Segments with Checkboxes */}
+            {approvalAction === 'approve' && selectedPlan?.vacation_splits && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Select Vacation Segments to Approve
+                </Label>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Uncheck segments to reject them individually. At least one segment must be selected.
+                </p>
+                <div className="space-y-2 max-h-60 overflow-y-auto border rounded-md p-3">
+                  {selectedPlan.vacation_splits.map((split: any, index: number) => {
+                    const isSelected = selectedSplits.has(split.id);
+                    
+                    return (
+                      <div
+                        key={split.id}
+                        className={cn(
+                          "flex items-start gap-3 p-3 rounded-lg border-2 transition-colors",
+                          isSelected ? "bg-primary/5 border-primary" : "bg-muted border-border"
+                        )}
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleSplitSelection(split.id)}
+                          id={`split-${split.id}`}
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <label
+                            htmlFor={`split-${split.id}`}
+                            className="text-sm font-medium cursor-pointer block mb-1"
+                          >
+                            Segment {index + 1}
+                          </label>
+                          <p className="text-sm text-muted-foreground">
+                            {format(new Date(split.start_date), 'MMM dd, yyyy')} → {format(new Date(split.end_date), 'MMM dd, yyyy')}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {split.days} days
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Selected: {selectedSplits.size} of {selectedPlan.vacation_splits.length} segments
+                </p>
+              </div>
+            )}
+
+            <Separator />
+
             <div>
               <label className="text-sm font-medium mb-2 block">
                 Comments {approvalAction === 'reject' && '(Required)'}
@@ -537,31 +683,105 @@ const VacationApprovalWorkflow = ({ approvalLevel, scopeType, scopeId }: Vacatio
         </DialogContent>
       </Dialog>
 
-      {/* Conflict Warning Dialog */}
+      {/* Conflict Warning Dialog with Per-Segment Selection */}
       <Dialog open={showConflictDialog} onOpenChange={setShowConflictDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
               <AlertCircle className="h-5 w-5" />
               Vacation Conflict Detected
             </DialogTitle>
             <DialogDescription>
-              The following staff members from the same specialty have overlapping vacation periods:
+              Some vacation segments have conflicts. Review each segment and select which ones to approve.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            <ScrollArea className="max-h-60 border rounded-md p-4">
-              {conflictData.map((conflict, index) => (
-                <div key={index} className="mb-3 pb-3 border-b last:border-0">
-                  <p className="font-medium">{conflict.staff_name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {format(new Date(conflict.start_date), 'MMM dd, yyyy')} - {format(new Date(conflict.end_date), 'MMM dd, yyyy')}
-                  </p>
-                  <p className="text-sm text-muted-foreground">{conflict.days} days</p>
-                </div>
-              ))}
-            </ScrollArea>
+            {/* Per-Segment Conflict Display with Checkboxes */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Select Segments to Approve</Label>
+              <p className="text-xs text-muted-foreground">
+                Segments with conflicts show conflicting staff. You can approve non-conflicting segments or acknowledge conflicts for specific segments.
+              </p>
+              
+              {selectedPlan?.vacation_splits.map((split: any, index: number) => {
+                const isSelected = selectedSplits.has(split.id);
+                const hasConflict = splitConflicts.has(split.id);
+                const conflicts = hasConflict ? splitConflicts.get(split.id) : [];
+                
+                return (
+                  <div
+                    key={split.id}
+                    className={cn(
+                      "border-2 rounded-lg p-4 transition-colors",
+                      hasConflict && "border-warning bg-warning/5",
+                      !hasConflict && isSelected && "border-primary bg-primary/5",
+                      !hasConflict && !isSelected && "border-border bg-muted"
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleSplitSelection(split.id)}
+                        id={`conflict-split-${split.id}`}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <label
+                            htmlFor={`conflict-split-${split.id}`}
+                            className="text-sm font-semibold cursor-pointer"
+                          >
+                            Segment {index + 1}
+                          </label>
+                          {hasConflict && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Badge className="bg-warning text-warning-foreground text-xs">
+                                    <AlertCircle className="h-3 w-3 mr-1" />
+                                    Conflict
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-xs">This segment overlaps with other staff vacations</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                          {!hasConflict && (
+                            <Badge className="bg-success text-success-foreground text-xs">
+                              No Conflict
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-1">
+                          {format(new Date(split.start_date), 'MMM dd, yyyy')} → {format(new Date(split.end_date), 'MMM dd, yyyy')} ({split.days} days)
+                        </p>
+                        
+                        {hasConflict && conflicts && conflicts.length > 0 && (
+                          <div className="mt-2 p-3 bg-background rounded-md border border-warning/20">
+                            <p className="text-xs font-medium text-warning mb-2">Conflicting Staff:</p>
+                            <div className="space-y-1">
+                              {conflicts.map((cp: any, cpIdx: number) => (
+                                <div key={cpIdx} className="text-xs text-muted-foreground pl-3 border-l-2 border-warning">
+                                  <p className="font-medium">{cp.staff_name}</p>
+                                  <p>
+                                    {format(new Date(cp.start_date), 'MMM dd')} - {format(new Date(cp.end_date), 'MMM dd, yyyy')} ({cp.days} days)
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <Separator />
 
             <div className="space-y-2">
               <Label htmlFor="conflict-reason" className="text-destructive">
@@ -571,12 +791,12 @@ const VacationApprovalWorkflow = ({ approvalLevel, scopeType, scopeId }: Vacatio
                 id="conflict-reason"
                 value={conflictReason}
                 onChange={(e) => setConflictReason(e.target.value)}
-                placeholder="I acknowledge the conflict and approve because..."
+                placeholder="I acknowledge the conflicts and approve selected segments because..."
                 rows={4}
                 required
               />
               <p className="text-sm text-muted-foreground">
-                By providing a reason, you acknowledge responsibility for approving overlapping vacations in the same specialty.
+                By providing a reason, you acknowledge responsibility for approving segments with overlapping vacations.
               </p>
             </div>
           </div>
@@ -594,9 +814,9 @@ const VacationApprovalWorkflow = ({ approvalLevel, scopeType, scopeId }: Vacatio
             <Button
               variant="destructive"
               onClick={confirmConflictApproval}
-              disabled={approvalMutation.isPending || !conflictReason.trim()}
+              disabled={approvalMutation.isPending || !conflictReason.trim() || selectedSplits.size === 0}
             >
-              {approvalMutation.isPending ? 'Processing...' : 'Acknowledge & Approve'}
+              {approvalMutation.isPending ? 'Processing...' : `Acknowledge & Approve ${selectedSplits.size} Segment(s)`}
             </Button>
           </DialogFooter>
         </DialogContent>

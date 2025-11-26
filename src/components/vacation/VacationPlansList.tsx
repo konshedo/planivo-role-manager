@@ -283,16 +283,31 @@ const VacationPlansList = ({ departmentId, staffView = false }: VacationPlansLis
                         {plan.vacation_splits.map((split: any, index: number) => (
                           <div
                             key={split.id}
-                            className="flex items-center justify-between p-2 bg-accent rounded"
+                            className={cn(
+                              "flex items-center justify-between p-2 rounded",
+                              split.status === 'approved' && "bg-success/10 border border-success",
+                              split.status === 'rejected' && "bg-destructive/10 border border-destructive",
+                              split.status === 'pending' && "bg-accent"
+                            )}
                           >
                             <span className="text-sm">Period {index + 1}</span>
                             <span className="text-sm font-medium">
                               {format(new Date(split.start_date), 'PPP')} →{' '}
                               {format(new Date(split.end_date), 'PPP')}
                             </span>
-                            <span className="text-sm text-muted-foreground">
-                              {split.days} days
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-muted-foreground">
+                                {split.days} days
+                              </span>
+                              {split.status && split.status !== 'pending' && (
+                                <Badge className={cn(
+                                  split.status === 'approved' && 'bg-success text-success-foreground',
+                                  split.status === 'rejected' && 'bg-destructive text-destructive-foreground'
+                                )}>
+                                  {split.status === 'approved' ? '✓ Approved' : '✗ Rejected'}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>

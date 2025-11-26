@@ -727,27 +727,33 @@ export type Database = {
       }
       vacation_splits: {
         Row: {
+          conflict_data: Json | null
           created_at: string
           days: number
           end_date: string
           id: string
           start_date: string
+          status: string | null
           vacation_plan_id: string
         }
         Insert: {
+          conflict_data?: Json | null
           created_at?: string
           days: number
           end_date: string
           id?: string
           start_date: string
+          status?: string | null
           vacation_plan_id: string
         }
         Update: {
+          conflict_data?: Json | null
           created_at?: string
           days?: number
           end_date?: string
           id?: string
           start_date?: string
+          status?: string | null
           vacation_plan_id?: string
         }
         Relationships: [
