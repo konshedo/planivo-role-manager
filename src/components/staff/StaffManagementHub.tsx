@@ -18,6 +18,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { UserPlus, Users, Pencil, Trash2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -191,6 +192,24 @@ const StaffManagementHub = () => {
     createStaffMutation.mutate({ email, full_name: fullName, specialty_id: specialtyId });
   };
 
+  const toggleActiveMutation = useMutation({
+    mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_active: isActive })
+        .eq('id', userId);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      toast.success(`Staff member ${variables.isActive ? 'activated' : 'deactivated'}`);
+      queryClient.invalidateQueries({ queryKey: ['department-staff'] });
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to update status: ${error.message}`);
+    },
+  });
+
   const deleteStaffMutation = useMutation({
     mutationFn: async (userId: string) => {
       // Delete user_role record (removes staff from department)
@@ -222,6 +241,10 @@ const StaffManagementHub = () => {
   const handleEditClick = (userId: string) => {
     setSelectedStaffId(userId);
     setEditDialogOpen(true);
+  };
+
+  const handleToggleActive = (userId: string, currentStatus: boolean) => {
+    toggleActiveMutation.mutate({ userId, isActive: !currentStatus });
   };
 
   if (!userRole) {
@@ -333,9 +356,16 @@ const StaffManagementHub = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={member.profiles?.is_active ? "default" : "secondary"}>
-                          {member.profiles?.is_active ? 'Active' : 'Inactive'}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={member.profiles?.is_active ?? false}
+                            onCheckedChange={() => handleToggleActive(member.user_id, member.profiles?.is_active ?? false)}
+                            disabled={toggleActiveMutation.isPending}
+                          />
+                          <span className="text-sm text-muted-foreground">
+                            {member.profiles?.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
