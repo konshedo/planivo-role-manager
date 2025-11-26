@@ -314,20 +314,35 @@ export default function VacationCalendarView({ departmentId }: VacationCalendarV
                       <button
                         {...props}
                         className={cn(
-                          "h-12 w-full p-0 font-normal hover:bg-accent rounded-md transition-all relative",
+                          "h-12 w-full p-1 font-normal hover:bg-accent rounded-md transition-all relative group",
                           hasVacations && `font-semibold border-2 ${getVacationStatusColor(vacationsOnDay)}`
                         )}
                       >
-                        <time dateTime={format(date, "yyyy-MM-dd")} className="text-base">
+                        <time dateTime={format(date, "yyyy-MM-dd")} className="text-base absolute top-1 left-2">
                           {format(date, "d")}
                         </time>
                         {hasVacations && (
-                          <div className={cn(
-                            "absolute bottom-1 right-1 text-white text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center",
-                            vacationsOnDay.some(v => v.status === 'approved') ? "bg-emerald-600 dark:bg-emerald-500" : "bg-amber-600 dark:bg-amber-500"
-                          )}>
-                            {vacationsOnDay.length}
-                          </div>
+                          <>
+                            <div className={cn(
+                              "absolute bottom-1 right-1 text-white text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md z-10",
+                              vacationsOnDay.some(v => v.status === 'approved') ? "bg-emerald-600 dark:bg-emerald-500" : "bg-amber-600 dark:bg-amber-500"
+                            )}>
+                              {vacationsOnDay.length}
+                            </div>
+                            {vacationsOnDay.length > 1 && (
+                              <div className="absolute bottom-1 left-1 flex gap-0.5">
+                                {vacationsOnDay.slice(0, 3).map((_, idx) => (
+                                  <div 
+                                    key={idx} 
+                                    className={cn(
+                                      "h-1 w-1 rounded-full",
+                                      vacationsOnDay[idx]?.status === 'approved' ? "bg-emerald-500" : "bg-amber-500"
+                                    )}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </>
                         )}
                       </button>
                     </PopoverTrigger>
