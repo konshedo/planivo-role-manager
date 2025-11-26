@@ -6,9 +6,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { UserPlus, Filter, Pencil, Mail, FileSpreadsheet } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
+import { toast } from 'sonner';
 import UnifiedUserCreation from './UnifiedUserCreation';
 import BulkUserUpload from './BulkUserUpload';
 import UserEditDialog from './UserEditDialog';
@@ -18,6 +20,7 @@ const UserManagement = () => {
   const [filterWorkspace, setFilterWorkspace] = useState<string>('all');
   const [editOpen, setEditOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
+  const queryClient = useQueryClient();
 
   const { data: workspaces } = useQuery({
     queryKey: ['workspaces'],
@@ -76,6 +79,28 @@ const UserManagement = () => {
 
   const handleUserUpdate = (updatedUser: any) => {
     setEditingUser(updatedUser);
+  };
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_active: isActive })
+        .eq('id', userId);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      toast.success(`User ${variables.isActive ? 'activated' : 'deactivated'}`);
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to update status: ${error.message}`);
+    },
+  });
+
+  const handleToggleActive = (userId: string, currentStatus: boolean) => {
+    toggleActiveMutation.mutate({ userId, isActive: !currentStatus });
   };
 
   return (
@@ -158,9 +183,16 @@ const UserManagement = () => {
                           <TableCell className="font-medium whitespace-nowrap">{user.full_name}</TableCell>
                           <TableCell className="whitespace-nowrap">{user.email}</TableCell>
                           <TableCell>
-                            <Badge variant={user.is_active ? "default" : "secondary"}>
-                              {user.is_active ? 'Active' : 'Inactive'}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={user.is_active ?? false}
+                                onCheckedChange={() => handleToggleActive(user.id, user.is_active ?? false)}
+                                disabled={toggleActiveMutation.isPending}
+                              />
+                              <span className="text-sm text-muted-foreground">
+                                {user.is_active ? 'Active' : 'Inactive'}
+                              </span>
+                            </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1 min-w-[150px]">
