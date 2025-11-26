@@ -318,7 +318,7 @@ export default function VacationCalendarView({ departmentId }: VacationCalendarV
               day_hidden: "invisible",
             }}
             components={{
-              Day: ({ date, ...props }) => {
+              Day: ({ date, displayMonth, ...props }) => {
                 const vacationsOnDay = getVacationsForDate(date);
                 const hasVacations = vacationsOnDay.length > 0;
 

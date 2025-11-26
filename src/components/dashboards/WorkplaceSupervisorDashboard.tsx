@@ -20,7 +20,7 @@ const WorkplaceSupervisorDashboard = () => {
   const { hasAccess } = useModuleContext();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
-  const activeTab = searchParams.get('tab') || (hasAccess('task_management') ? 'tasks' : hasAccess('vacation_planning') ? 'approvals' : 'tasks');
+  const activeTab = searchParams.get('tab');
 
   const { data: userRole } = useQuery({
     queryKey: ['workplace-supervisor-role', user?.id],
@@ -43,6 +43,12 @@ const WorkplaceSupervisorDashboard = () => {
 
   return (
     <>
+      {!activeTab && (
+        <PageHeader 
+          title="Workspace Overview" 
+          description="Manage tasks and vacation planning for the workspace"
+        />
+      )}
       {activeTab === 'tasks' && (
         <PageHeader 
           title="Workspace Tasks" 
@@ -93,6 +99,35 @@ const WorkplaceSupervisorDashboard = () => {
       )}
       
       <div className="space-y-4">
+        {!activeTab && (
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg border bg-card p-6">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-muted-foreground">Active Tasks</p>
+                <ClipboardList className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <p className="text-3xl font-bold mt-2">-</p>
+              <p className="text-xs text-muted-foreground mt-2">View from Tasks tab</p>
+            </div>
+            <div className="rounded-lg border bg-card p-6">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-muted-foreground">Pending Approvals</p>
+                <CheckSquare className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <p className="text-3xl font-bold mt-2">-</p>
+              <p className="text-xs text-muted-foreground mt-2">View from Approvals tab</p>
+            </div>
+            <div className="rounded-lg border bg-card p-6">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-muted-foreground">Conflicts</p>
+                <AlertCircle className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <p className="text-3xl font-bold mt-2">-</p>
+              <p className="text-xs text-muted-foreground mt-2">View from Conflicts tab</p>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'tasks' && hasAccess('task_management') && (
           <ModuleGuard moduleKey="task_management">
             <TaskManager scopeType="workspace" scopeId={userRole.workspace_id} />
