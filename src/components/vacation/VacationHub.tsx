@@ -7,16 +7,23 @@ import VacationConflictDashboard from './VacationConflictDashboard';
 import VacationTypeManagement from './VacationTypeManagement';
 import VacationCalendarView from './VacationCalendarView';
 import { useUserRole } from '@/hooks/useUserRole';
+import { ErrorBoundary } from 'react-error-boundary';
+import { ErrorState } from '@/components/layout/ErrorState';
+import { LoadingState } from '@/components/layout/LoadingState';
 
 interface VacationHubProps {
   departmentId?: string;
 }
 
 const VacationHub = ({ departmentId }: VacationHubProps) => {
-  const { data: roles } = useUserRole();
+  const { data: roles, isLoading } = useUserRole();
   const isSuperAdmin = roles?.some(r => r.role === 'super_admin');
   const isStaff = roles?.some(r => r.role === 'staff');
   const isDepartmentHead = roles?.some(r => r.role === 'department_head');
+
+  if (isLoading) {
+    return <LoadingState message="Loading vacation planning..." />;
+  }
   
   // Find approver role and determine level (supports 3-level approval workflow)
   const approverRole = roles?.find(r => 
@@ -53,7 +60,16 @@ const VacationHub = ({ departmentId }: VacationHubProps) => {
   const approvalInfo = getApprovalInfo();
 
   return (
-    <div className="space-y-6">
+    <ErrorBoundary
+      fallback={
+        <ErrorState
+          title="Vacation Planning Error"
+          message="Failed to load vacation planning system"
+          onRetry={() => window.location.reload()}
+        />
+      }
+    >
+      <div className="space-y-6">
       <Tabs defaultValue="calendar" className="space-y-4">
         <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="calendar">
@@ -135,6 +151,7 @@ const VacationHub = ({ departmentId }: VacationHubProps) => {
         )}
       </Tabs>
     </div>
+    </ErrorBoundary>
   );
 };
 

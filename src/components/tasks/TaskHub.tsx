@@ -3,9 +3,12 @@ import { ListTodo, CheckCircle2 } from 'lucide-react';
 import TaskManager from './TaskManager';
 import StaffTaskView from './StaffTaskView';
 import { useUserRole } from '@/hooks/useUserRole';
+import { ErrorBoundary } from 'react-error-boundary';
+import { ErrorState } from '@/components/layout/ErrorState';
+import { LoadingState } from '@/components/layout/LoadingState';
 
 const TaskHub = () => {
-  const { data: roles } = useUserRole();
+  const { data: roles, isLoading } = useUserRole();
   
   // Determine user's scope for task management
   const managerRole = roles?.find(r => 
@@ -13,6 +16,10 @@ const TaskHub = () => {
   );
 
   const canManageTasks = !!managerRole;
+
+  if (isLoading) {
+    return <LoadingState message="Loading tasks..." />;
+  }
   
   const getScopeInfo = () => {
     if (!managerRole) return null;
@@ -30,7 +37,16 @@ const TaskHub = () => {
   const scopeInfo = getScopeInfo();
 
   return (
-    <div className="space-y-4">
+    <ErrorBoundary
+      fallback={
+        <ErrorState
+          title="Task Error"
+          message="Failed to load task management system"
+          onRetry={() => window.location.reload()}
+        />
+      }
+    >
+      <div className="space-y-4">
       <Tabs defaultValue={canManageTasks ? "manage" : "my-tasks"} className="space-y-4">
         <TabsList className="grid w-full grid-cols-2">
           {canManageTasks && (
@@ -56,6 +72,7 @@ const TaskHub = () => {
         </TabsContent>
       </Tabs>
     </div>
+    </ErrorBoundary>
   );
 };
 

@@ -7,6 +7,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
+import { ErrorBoundary } from 'react-error-boundary';
+import { ErrorState } from '@/components/layout/ErrorState';
+import { LoadingState } from '@/components/layout/LoadingState';
 
 const NotificationHub = () => {
   const { user } = useAuth();
@@ -75,8 +78,21 @@ const NotificationHub = () => {
 
   const unreadCount = notifications?.filter(n => !n.is_read).length || 0;
 
+  if (isLoading) {
+    return <LoadingState message="Loading notifications..." />;
+  }
+
   return (
-    <Card className="border-2">
+    <ErrorBoundary
+      fallback={
+        <ErrorState
+          title="Notification Error"
+          message="Failed to load notifications"
+          onRetry={() => window.location.reload()}
+        />
+      }
+    >
+      <Card className="border-2">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
@@ -96,11 +112,7 @@ const NotificationHub = () => {
         </div>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <div className="text-center py-8 text-muted-foreground">
-            Loading notifications...
-          </div>
-        ) : notifications && notifications.length > 0 ? (
+        {notifications && notifications.length > 0 ? (
           <div className="space-y-3">
             {notifications.map((notification) => (
               <div
@@ -152,6 +164,7 @@ const NotificationHub = () => {
         )}
       </CardContent>
     </Card>
+    </ErrorBoundary>
   );
 };
 
