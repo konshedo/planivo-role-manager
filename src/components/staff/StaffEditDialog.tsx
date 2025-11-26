@@ -115,7 +115,7 @@ export function StaffEditDialog({
     },
     onSuccess: () => {
       toast.success('Staff member updated successfully');
-      queryClient.invalidateQueries({ queryKey: ['staff'] });
+      queryClient.invalidateQueries({ queryKey: ['department-staff'] });
       queryClient.invalidateQueries({ queryKey: ['staff-profile'] });
       queryClient.invalidateQueries({ queryKey: ['staff-role'] });
       onOpenChange(false);
