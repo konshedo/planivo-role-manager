@@ -18,9 +18,10 @@ interface UserEditDialogProps {
   onOpenChange: (open: boolean) => void;
   user: any;
   onUserUpdate: (updatedUser: any) => void;
+  mode?: 'full' | 'scoped'; // 'full' = Super Admin view, 'scoped' = Department Head view
 }
 
-const UserEditDialog = ({ open, onOpenChange, user, onUserUpdate }: UserEditDialogProps) => {
+const UserEditDialog = ({ open, onOpenChange, user, onUserUpdate, mode = 'full' }: UserEditDialogProps) => {
   const [fullName, setFullName] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [newRole, setNewRole] = useState('general_admin');
@@ -406,8 +407,9 @@ const UserEditDialog = ({ open, onOpenChange, user, onUserUpdate }: UserEditDial
 
             <Separator />
 
-            {/* Roles Section */}
-            <div className="space-y-4">
+            {/* Roles Section - Only show in full mode */}
+            {mode === 'full' && (
+              <div className="space-y-4">
               <div>
                 <h3 className="font-semibold mb-3">Current Roles</h3>
                 {user.roles && user.roles.length > 0 ? (
@@ -645,11 +647,13 @@ const UserEditDialog = ({ open, onOpenChange, user, onUserUpdate }: UserEditDial
                 </Button>
               </div>
             </div>
+            )}
 
             <Separator />
 
-            {/* Module Permissions Section (Read-only) */}
-            <div className="space-y-4">
+            {/* Module Permissions Section (Read-only) - Only show in full mode */}
+            {mode === 'full' && (
+              <div className="space-y-4">
               <div>
                 <h3 className="font-semibold mb-2">Module Access Permissions</h3>
                 <p className="text-sm text-muted-foreground mb-4">
@@ -694,6 +698,7 @@ const UserEditDialog = ({ open, onOpenChange, user, onUserUpdate }: UserEditDial
                 <p className="text-sm text-muted-foreground">No module permissions assigned (no roles assigned)</p>
               )}
             </div>
+            )}
           </div>
         )}
       </DialogContent>
