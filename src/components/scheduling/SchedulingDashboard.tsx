@@ -4,9 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Calendar, Users, Clock, AlertTriangle, CheckCircle, Clipboard } from 'lucide-react';
+import { Calendar, Users, AlertTriangle, CheckCircle, Clipboard } from 'lucide-react';
 import { format, parseISO, isWithinInterval, startOfWeek, endOfWeek, addDays } from 'date-fns';
 import { LoadingState } from '@/components/layout/LoadingState';
+import { EmptyState } from '@/components/layout/EmptyState';
 import { StatsCard } from '@/components/shared/StatsCard';
 
 interface SchedulingDashboardProps {
@@ -124,30 +125,30 @@ export const SchedulingDashboard: React.FC<SchedulingDashboardProps> = ({ depart
   return (
     <div className="space-y-6">
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <StatsCard
           title="Active Schedules"
           value={activeSchedules.length}
           icon={Calendar}
-          description="Published schedules"
+          description="Published"
         />
         <StatsCard
           title="Draft Schedules"
           value={draftSchedules.length}
           icon={Clipboard}
-          description="Awaiting publication"
+          description="Awaiting publish"
         />
         <StatsCard
           title="Department Staff"
           value={staffCount || 0}
           icon={Users}
-          description="Available for scheduling"
+          description="Available"
         />
         <StatsCard
-          title="This Week Coverage"
+          title="Weekly Coverage"
           value={`${coverageRate}%`}
           icon={CheckCircle}
-          description={`${filledShifts}/${totalShifts} shifts filled`}
+          description={`${filledShifts}/${totalShifts} filled`}
         />
       </div>
 
@@ -212,7 +213,7 @@ export const SchedulingDashboard: React.FC<SchedulingDashboardProps> = ({ depart
                     <div>
                       <p className="font-medium">{gap.shift.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {format(gap.date, 'EEEE, MMM d')} • {gap.shift.start_time} - {gap.shift.end_time}
+                        {format(gap.date, 'EEEE, MMM d')} • {gap.shift.start_time?.slice(0, 5)} - {gap.shift.end_time?.slice(0, 5)}
                       </p>
                     </div>
                   </div>
@@ -261,9 +262,11 @@ export const SchedulingDashboard: React.FC<SchedulingDashboardProps> = ({ depart
               ))}
             </div>
           ) : (
-            <p className="text-center text-muted-foreground py-4">
-              No active schedules. Create and publish a schedule to get started.
-            </p>
+            <EmptyState
+              icon={Calendar}
+              title="No active schedules"
+              description="Publish a schedule to start managing shifts"
+            />
           )}
         </CardContent>
       </Card>
