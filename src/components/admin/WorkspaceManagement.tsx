@@ -537,22 +537,22 @@ const WorkspaceManagement = () => {
                     <div className="grid grid-cols-2 gap-2 ml-6">
                     {categoryDepts.map((dept: any) => {
                         const isAssigned = isDepartmentAssigned(dept.id);
+                        const isPending = toggleDepartmentMutation.isPending;
                         
                         return (
                           <div
                             key={dept.id}
-                            className="flex items-center space-x-2 p-2 rounded-md hover:bg-accent cursor-pointer"
+                            className={`flex items-center space-x-2 p-2 rounded-md hover:bg-accent cursor-pointer ${isPending ? 'opacity-50 pointer-events-none' : ''}`}
                             onClick={() => handleToggleDepartment(dept.id)}
                           >
                             <Checkbox
                               id={dept.id}
                               checked={isAssigned}
-                              onClick={(e) => e.stopPropagation()}
+                              disabled={isPending}
                             />
                             <Label
                               htmlFor={dept.id}
                               className="text-sm cursor-pointer flex-1"
-                              onClick={(e) => e.stopPropagation()}
                             >
                               {dept.name}
                             </Label>
