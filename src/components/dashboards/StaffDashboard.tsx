@@ -3,10 +3,11 @@ import StaffTaskView from '@/components/tasks/StaffTaskView';
 import { VacationHub } from '@/modules/vacation';
 import { NotificationHub } from '@/modules/notifications';
 import { MessagingHub } from '@/modules/messaging';
+import { SchedulingHub } from '@/components/scheduling';
 import { ModuleGuard } from '@/components/ModuleGuard';
 import { useModuleContext } from '@/contexts/ModuleContext';
 import { useLocation } from 'react-router-dom';
-import { ClipboardList, Calendar, MessageSquare, Bell } from 'lucide-react';
+import { ClipboardList, Calendar, MessageSquare, Bell, CalendarClock } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { ErrorState } from '@/components/layout/ErrorState';
 
@@ -57,6 +58,12 @@ const StaffDashboard = () => {
           description="View your personal notifications"
         />
       )}
+      {activeTab === 'scheduling' && (
+        <PageHeader 
+          title="My Schedule" 
+          description="View your assigned shifts and work schedule"
+        />
+      )}
       
       <div className="space-y-4">
         {!activeTab && (
@@ -101,6 +108,12 @@ const StaffDashboard = () => {
         {activeTab === 'notifications' && hasAccess('notifications') && (
           <ModuleGuard moduleKey="notifications">
             <NotificationHub />
+          </ModuleGuard>
+        )}
+
+        {activeTab === 'scheduling' && hasAccess('scheduling') && (
+          <ModuleGuard moduleKey="scheduling">
+            <SchedulingHub />
           </ModuleGuard>
         )}
       </div>

@@ -7,7 +7,8 @@ import { VacationHub } from '@/modules/vacation';
 import { TaskHub } from '@/modules/tasks';
 import { NotificationHub } from '@/modules/notifications';
 import { MessagingHub } from '@/modules/messaging';
-import { Calendar, ClipboardList, UserPlus, Bell, MessageSquare } from 'lucide-react';
+import { SchedulingHub } from '@/components/scheduling';
+import { Calendar, ClipboardList, UserPlus, Bell, MessageSquare, CalendarClock } from 'lucide-react';
 import { ModuleGuard } from '@/components/ModuleGuard';
 import { useModuleContext } from '@/contexts/ModuleContext';
 import { useLocation } from 'react-router-dom';
@@ -148,7 +149,13 @@ const DepartmentHeadDashboard = () => {
           description="View important updates for your department"
         />
       )}
-      {!['staff','vacation','tasks','messaging','notifications'].includes(activeTab) && (
+      {activeTab === 'scheduling' && (
+        <PageHeader 
+          title="Scheduling" 
+          description="Manage staff schedules and shifts"
+        />
+      )}
+      {!['staff','vacation','tasks','messaging','notifications','scheduling'].includes(activeTab || '') && (
         <PageHeader 
           title="Department Overview" 
           description="Manage your department"
@@ -156,7 +163,7 @@ const DepartmentHeadDashboard = () => {
       )}
       
       <div className="space-y-4">
-        {!['staff','vacation','tasks','messaging','notifications'].includes(activeTab) && (
+        {!['staff','vacation','tasks','messaging','notifications','scheduling'].includes(activeTab || '') && (
           <div className="grid gap-4 md:grid-cols-3">
             <div className="rounded-lg border bg-card p-6">
               <div className="flex items-center justify-between">
@@ -212,8 +219,14 @@ const DepartmentHeadDashboard = () => {
           </ModuleGuard>
         )}
 
+        {activeTab === 'scheduling' && hasAccess('scheduling') && (
+          <ModuleGuard moduleKey="scheduling">
+            <SchedulingHub departmentId={userRole.department_id} />
+          </ModuleGuard>
+        )}
+
         {/* Show message if no valid tab content */}
-        {!hasAccess('staff_management') && !hasAccess('vacation_planning') && !hasAccess('task_management') && !hasAccess('messaging') && !hasAccess('notifications') && (
+        {!hasAccess('staff_management') && !hasAccess('vacation_planning') && !hasAccess('task_management') && !hasAccess('messaging') && !hasAccess('notifications') && !hasAccess('scheduling') && (
           <div className="text-center py-12">
             <p className="text-muted-foreground">No modules available. Contact your administrator.</p>
           </div>

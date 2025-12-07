@@ -11,7 +11,8 @@ import {
   Settings,
   LogOut,
   User,
-  ShieldCheck
+  ShieldCheck,
+  CalendarClock
 } from 'lucide-react';
 import { useModuleContext } from '@/contexts/ModuleContext';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -45,6 +46,7 @@ const moduleConfig = [
   { key: 'organization', label: 'Organization', icon: Building2, path: '/dashboard?tab=organization' },
   { key: 'staff_management', label: 'Staff', icon: UserCog, path: '/dashboard?tab=staff' },
   { key: 'vacation_planning', label: 'Vacation', icon: Calendar, path: '/dashboard?tab=vacation' },
+  { key: 'scheduling', label: 'Scheduling', icon: CalendarClock, path: '/dashboard?tab=scheduling' },
   { key: 'task_management', label: 'Tasks', icon: CheckSquare, path: '/dashboard?tab=tasks' },
   { key: 'messaging', label: 'Messages', icon: MessageSquare, path: '/dashboard?tab=messaging' },
   { key: 'notifications', label: 'Notifications', icon: Bell, path: '/dashboard?tab=notifications' },
