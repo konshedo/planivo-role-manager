@@ -55,7 +55,7 @@ export const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({ department
     enabled: !!user?.id,
   });
 
-  // Fetch upcoming assignments (next 30 days)
+  // Fetch upcoming assignments (next 4 weeks)
   const { data: upcomingAssignments } = useQuery({
     queryKey: ['upcoming-assignments', user?.id],
     queryFn: async () => {
@@ -126,7 +126,7 @@ export const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({ department
       </Card>
 
       {/* Week View */}
-      <div className="grid gap-2 md:grid-cols-7">
+      <div className="grid gap-2 grid-cols-7">
         {weekDays.map((day) => {
           const dayAssignments = getAssignmentsForDay(day);
           const isToday = isSameDay(day, new Date());
@@ -139,7 +139,7 @@ export const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({ department
                 isToday && "ring-2 ring-primary"
               )}
             >
-              <CardHeader className="p-3 pb-1">
+              <CardHeader className="p-2 sm:p-3 pb-1">
                 <div className="text-center">
                   <p className="text-xs text-muted-foreground">{format(day, 'EEE')}</p>
                   <p className={cn(
@@ -150,20 +150,20 @@ export const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({ department
                   </p>
                 </div>
               </CardHeader>
-              <CardContent className="p-2">
+              <CardContent className="p-1 sm:p-2">
                 {dayAssignments.length > 0 ? (
                   <div className="space-y-1">
                     {dayAssignments.map((assignment: any) => (
                       <div
                         key={assignment.id}
-                        className="p-2 rounded text-xs"
+                        className="p-1 sm:p-2 rounded text-xs"
                         style={{
                           backgroundColor: `${assignment.shifts?.color}20`,
                           borderLeft: `3px solid ${assignment.shifts?.color}`,
                         }}
                       >
                         <p className="font-medium truncate">{assignment.shifts?.name}</p>
-                        <p className="text-muted-foreground">
+                        <p className="text-muted-foreground hidden sm:block">
                           {assignment.shifts?.start_time?.slice(0, 5)} - {assignment.shifts?.end_time?.slice(0, 5)}
                         </p>
                       </div>
@@ -171,7 +171,7 @@ export const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({ department
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground text-center py-2">
-                    No shifts
+                    -
                   </p>
                 )}
               </CardContent>
@@ -213,7 +213,7 @@ export const StaffScheduleView: React.FC<StaffScheduleViewProps> = ({ department
                     <p className="font-medium">
                       {assignment.shifts?.start_time?.slice(0, 5)} - {assignment.shifts?.end_time?.slice(0, 5)}
                     </p>
-                    <Badge variant="outline" className="mt-1">
+                    <Badge variant="outline" className="mt-1 capitalize">
                       {assignment.status}
                     </Badge>
                   </div>

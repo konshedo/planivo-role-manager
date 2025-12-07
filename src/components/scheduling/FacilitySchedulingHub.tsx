@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Calendar, ClipboardList, LayoutDashboard, Clock, Send, Trash2 } from 'lucide-react';
+import { Plus, Calendar, ClipboardList, LayoutDashboard, Clock, Send, Trash2, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 import { LoadingState } from '@/components/layout/LoadingState';
@@ -40,6 +40,7 @@ export const FacilitySchedulingHub: React.FC<FacilitySchedulingHubProps> = ({ fa
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('schedules');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [filterDepartmentId, setFilterDepartmentId] = useState<string>('all');
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('');
 
   // Form state
@@ -75,7 +76,7 @@ export const FacilitySchedulingHub: React.FC<FacilitySchedulingHubProps> = ({ fa
         .select(`
           *,
           shifts (*),
-          departments:department_id (name)
+          departments:department_id (id, name)
         `)
         .eq('facility_id', facilityId)
         .order('created_at', { ascending: false });
@@ -84,6 +85,12 @@ export const FacilitySchedulingHub: React.FC<FacilitySchedulingHubProps> = ({ fa
       return data;
     },
   });
+
+  // Filter schedules by department
+  const filteredSchedules = schedules?.filter((schedule: any) => {
+    if (filterDepartmentId === 'all') return true;
+    return schedule.department_id === filterDepartmentId;
+  }) || [];
 
   // Create schedule mutation
   const createSchedule = useMutation({
@@ -139,8 +146,9 @@ export const FacilitySchedulingHub: React.FC<FacilitySchedulingHubProps> = ({ fa
       resetForm();
       setIsCreateOpen(false);
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to create schedule');
+    onError: (error: unknown) => {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create schedule';
+      toast.error(errorMessage);
     },
   });
 
@@ -158,6 +166,10 @@ export const FacilitySchedulingHub: React.FC<FacilitySchedulingHubProps> = ({ fa
       queryClient.invalidateQueries({ queryKey: ['facility-schedules'] });
       toast.success('Schedule published - Department Heads can now assign staff');
     },
+    onError: (error: unknown) => {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to publish schedule';
+      toast.error(errorMessage);
+    },
   });
 
   // Delete schedule mutation
@@ -173,6 +185,10 @@ export const FacilitySchedulingHub: React.FC<FacilitySchedulingHubProps> = ({ fa
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['facility-schedules'] });
       toast.success('Schedule deleted');
+    },
+    onError: (error: unknown) => {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete schedule';
+      toast.error(errorMessage);
     },
   });
 
@@ -244,185 +260,215 @@ export const FacilitySchedulingHub: React.FC<FacilitySchedulingHubProps> = ({ fa
 
         <TabsContent value="schedules">
           <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            {/* Header with Filter and Create */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h2 className="text-xl font-semibold">Facility Schedules</h2>
-                <p className="text-sm text-muted-foreground">Create schedules for departments - Department Heads will assign staff</p>
+                <p className="text-sm text-muted-foreground">
+                  Create schedules for departments - Department Heads will assign staff
+                </p>
               </div>
-              <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Schedule
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Create New Schedule</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-6 py-4">
-                    {/* Department Selection */}
-                    <div>
-                      <Label>Department</Label>
-                      <Select value={selectedDepartmentId} onValueChange={setSelectedDepartmentId}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select department" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {departments?.map((dept) => (
-                            <SelectItem key={dept.id} value={dept.id}>
-                              {dept.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
 
-                    {/* Basic Info */}
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="name">Schedule Name</Label>
-                        <Input
-                          id="name"
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          placeholder="e.g., January 2025 Schedule"
-                        />
+              <div className="flex items-center gap-2">
+                {/* Department Filter */}
+                <Select value={filterDepartmentId} onValueChange={setFilterDepartmentId}>
+                  <SelectTrigger className="w-[180px]">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="All Departments" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Departments</SelectItem>
+                    {departments?.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.id}>
+                        {dept.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Create Button */}
+                <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="h-4 w-4 mr-2" />
+                      <span className="hidden sm:inline">Create Schedule</span>
+                      <span className="sm:hidden">New</span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Create New Schedule</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-6 py-4">
+                      {/* Department Selection */}
+                      <div className="space-y-2">
+                        <Label>Department *</Label>
+                        <Select value={selectedDepartmentId} onValueChange={setSelectedDepartmentId}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select department" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {departments?.map((dept) => (
+                              <SelectItem key={dept.id} value={dept.id}>
+                                {dept.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="startDate">Start Date</Label>
+
+                      {/* Basic Info */}
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="name">Schedule Name *</Label>
                           <Input
-                            id="startDate"
-                            type="date"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
+                            id="name"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="e.g., January 2025 Schedule"
                           />
                         </div>
-                        <div>
-                          <Label htmlFor="endDate">End Date</Label>
-                          <Input
-                            id="endDate"
-                            type="date"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                          />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="startDate">Start Date *</Label>
+                            <Input
+                              id="startDate"
+                              type="date"
+                              value={startDate}
+                              onChange={(e) => setStartDate(e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="endDate">End Date *</Label>
+                            <Input
+                              id="endDate"
+                              type="date"
+                              value={endDate}
+                              onChange={(e) => setEndDate(e.target.value)}
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Shift Count Selector */}
-                    <div className="space-y-3">
-                      <Label>Number of Shifts</Label>
-                      <RadioGroup
-                        value={shiftCount.toString()}
-                        onValueChange={handleShiftCountChange}
-                        className="flex gap-4"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="1" id="shift1" />
-                          <Label htmlFor="shift1" className="cursor-pointer">1 Shift</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="2" id="shift2" />
-                          <Label htmlFor="shift2" className="cursor-pointer">2 Shifts</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="3" id="shift3" />
-                          <Label htmlFor="shift3" className="cursor-pointer">3 Shifts</Label>
-                        </div>
-                      </RadioGroup>
-                    </div>
+                      {/* Shift Count Selector */}
+                      <div className="space-y-3">
+                        <Label>Number of Shifts</Label>
+                        <RadioGroup
+                          value={shiftCount.toString()}
+                          onValueChange={handleShiftCountChange}
+                          className="flex flex-wrap gap-4"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="1" id="shift1" />
+                            <Label htmlFor="shift1" className="cursor-pointer">1 Shift</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="2" id="shift2" />
+                            <Label htmlFor="shift2" className="cursor-pointer">2 Shifts</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="3" id="shift3" />
+                            <Label htmlFor="shift3" className="cursor-pointer">3 Shifts</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
 
-                    {/* Dynamic Shift Configuration */}
-                    <div className="space-y-4">
-                      <Label>Shift Configuration</Label>
-                      {shifts.slice(0, shiftCount).map((shift, index) => (
-                        <Card key={index} className="border-l-4" style={{ borderLeftColor: shift.color }}>
-                          <CardContent className="pt-4 space-y-4">
-                            <div className="flex items-center justify-between">
-                              <span className="font-medium">Shift {index + 1}</span>
-                              <input
-                                type="color"
-                                value={shift.color}
-                                onChange={(e) => updateShift(index, 'color', e.target.value)}
-                                className="w-8 h-8 rounded cursor-pointer"
-                              />
-                            </div>
-                            <div>
-                              <Label>Shift Name</Label>
-                              <Input
-                                value={shift.name}
-                                onChange={(e) => updateShift(index, 'name', e.target.value)}
-                                placeholder="e.g., Morning Shift"
-                              />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <Label>Start Time</Label>
-                                <Input
-                                  type="time"
-                                  value={shift.startTime}
-                                  onChange={(e) => updateShift(index, 'startTime', e.target.value)}
+                      {/* Dynamic Shift Configuration */}
+                      <div className="space-y-4">
+                        <Label>Shift Configuration</Label>
+                        {shifts.slice(0, shiftCount).map((shift, index) => (
+                          <Card key={index} className="border-l-4" style={{ borderLeftColor: shift.color }}>
+                            <CardContent className="pt-4 space-y-4">
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium">Shift {index + 1}</span>
+                                <input
+                                  type="color"
+                                  value={shift.color}
+                                  onChange={(e) => updateShift(index, 'color', e.target.value)}
+                                  className="w-8 h-8 rounded cursor-pointer border-0"
                                 />
                               </div>
-                              <div>
-                                <Label>End Time</Label>
+                              <div className="space-y-2">
+                                <Label>Shift Name</Label>
                                 <Input
-                                  type="time"
-                                  value={shift.endTime}
-                                  onChange={(e) => updateShift(index, 'endTime', e.target.value)}
+                                  value={shift.name}
+                                  onChange={(e) => updateShift(index, 'name', e.target.value)}
+                                  placeholder="e.g., Morning Shift"
                                 />
                               </div>
-                            </div>
-                            <div>
-                              <Label>Required Staff per Shift</Label>
-                              <Input
-                                type="number"
-                                min={1}
-                                value={shift.requiredStaff}
-                                onChange={(e) => updateShift(index, 'requiredStaff', parseInt(e.target.value) || 1)}
-                              />
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label>Start Time</Label>
+                                  <Input
+                                    type="time"
+                                    value={shift.startTime}
+                                    onChange={(e) => updateShift(index, 'startTime', e.target.value)}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>End Time</Label>
+                                  <Input
+                                    type="time"
+                                    value={shift.endTime}
+                                    onChange={(e) => updateShift(index, 'endTime', e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Required Staff per Shift</Label>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  value={shift.requiredStaff}
+                                  onChange={(e) => updateShift(index, 'requiredStaff', parseInt(e.target.value) || 1)}
+                                />
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
 
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={() => createSchedule.mutate()}
-                        disabled={!name || !startDate || !endDate || !selectedDepartmentId || createSchedule.isPending}
-                      >
-                        {createSchedule.isPending ? 'Creating...' : 'Create Schedule'}
-                      </Button>
+                      <div className="flex justify-end gap-2 pt-4">
+                        <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={() => createSchedule.mutate()}
+                          disabled={!name || !startDate || !endDate || !selectedDepartmentId || createSchedule.isPending}
+                        >
+                          {createSchedule.isPending ? 'Creating...' : 'Create Schedule'}
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
 
             {/* Schedule List */}
-            {!schedules || schedules.length === 0 ? (
+            {filteredSchedules.length === 0 ? (
               <EmptyState
                 icon={ClipboardList}
-                title="No schedules yet"
-                description="Create your first schedule for a department"
+                title={filterDepartmentId === 'all' ? 'No schedules yet' : 'No schedules for this department'}
+                description={filterDepartmentId === 'all' 
+                  ? 'Create your first schedule for a department' 
+                  : 'Create a schedule for this department or select a different filter'
+                }
               />
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {schedules.map((schedule: any) => (
+                {filteredSchedules.map((schedule: any) => (
                   <Card key={schedule.id}>
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
-                        <div>
+                        <div className="space-y-1">
                           <CardTitle className="text-lg">{schedule.name}</CardTitle>
                           <CardDescription>
-                            {(schedule.departments as any)?.name} • {format(parseISO(schedule.start_date), 'MMM d')} - {format(parseISO(schedule.end_date), 'MMM d, yyyy')}
+                            {(schedule.departments as any)?.name}
                           </CardDescription>
+                          <p className="text-xs text-muted-foreground">
+                            {format(parseISO(schedule.start_date), 'MMM d')} - {format(parseISO(schedule.end_date), 'MMM d, yyyy')}
+                          </p>
                         </div>
                         {getStatusBadge(schedule.status)}
                       </div>
@@ -454,6 +500,7 @@ export const FacilitySchedulingHub: React.FC<FacilitySchedulingHubProps> = ({ fa
                               <Button
                                 size="sm"
                                 onClick={() => publishSchedule.mutate(schedule.id)}
+                                disabled={publishSchedule.isPending}
                               >
                                 <Send className="h-4 w-4 mr-1" />
                                 Publish
@@ -462,6 +509,7 @@ export const FacilitySchedulingHub: React.FC<FacilitySchedulingHubProps> = ({ fa
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => deleteSchedule.mutate(schedule.id)}
+                                disabled={deleteSchedule.isPending}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -469,7 +517,7 @@ export const FacilitySchedulingHub: React.FC<FacilitySchedulingHubProps> = ({ fa
                           )}
                           {schedule.status === 'published' && (
                             <p className="text-xs text-muted-foreground">
-                              Waiting for Department Head to assign staff
+                              Awaiting staff assignment by Department Head
                             </p>
                           )}
                         </div>
@@ -483,14 +531,46 @@ export const FacilitySchedulingHub: React.FC<FacilitySchedulingHubProps> = ({ fa
         </TabsContent>
 
         <TabsContent value="calendar">
-          {departments && departments.length > 0 && (
-            <ShiftCalendarView departmentId={departments[0].id} />
+          {filterDepartmentId !== 'all' ? (
+            <ShiftCalendarView departmentId={filterDepartmentId} />
+          ) : departments && departments.length > 0 ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 p-4 bg-muted/50 rounded-lg">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
+                  Select a department filter above to view its calendar
+                </span>
+              </div>
+              <ShiftCalendarView departmentId={departments[0].id} />
+            </div>
+          ) : (
+            <EmptyState
+              icon={Calendar}
+              title="No departments"
+              description="Add departments to this facility first"
+            />
           )}
         </TabsContent>
 
         <TabsContent value="dashboard">
-          {departments && departments.length > 0 && (
-            <SchedulingDashboard departmentId={departments[0].id} />
+          {filterDepartmentId !== 'all' ? (
+            <SchedulingDashboard departmentId={filterDepartmentId} />
+          ) : departments && departments.length > 0 ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 p-4 bg-muted/50 rounded-lg">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
+                  Select a department filter above to view its dashboard
+                </span>
+              </div>
+              <SchedulingDashboard departmentId={departments[0].id} />
+            </div>
+          ) : (
+            <EmptyState
+              icon={LayoutDashboard}
+              title="No departments"
+              description="Add departments to this facility first"
+            />
           )}
         </TabsContent>
       </Tabs>

@@ -8,11 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { UserPlus, Calendar, Clock, Users, AlertTriangle } from 'lucide-react';
+import { UserPlus, Calendar, Users, AlertTriangle, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { format, parseISO, eachDayOfInterval, isSameDay } from 'date-fns';
+import { format, parseISO, eachDayOfInterval } from 'date-fns';
 import { LoadingState } from '@/components/layout/LoadingState';
 import { EmptyState } from '@/components/layout/EmptyState';
 
@@ -29,7 +28,7 @@ export const StaffAssignments: React.FC<StaffAssignmentsProps> = ({ departmentId
   const [selectedStaff, setSelectedStaff] = useState<string[]>([]);
   const [isAssignOpen, setIsAssignOpen] = useState(false);
 
-  // Fetch schedules (draft and published)
+  // Fetch schedules (published only for assignment)
   const { data: schedules, isLoading: schedulesLoading } = useQuery({
     queryKey: ['schedules-for-assignment', departmentId],
     queryFn: async () => {
@@ -40,7 +39,7 @@ export const StaffAssignments: React.FC<StaffAssignmentsProps> = ({ departmentId
           shifts (*)
         `)
         .eq('department_id', departmentId)
-        .neq('status', 'archived')
+        .in('status', ['published', 'draft'])
         .order('start_date', { ascending: false });
 
       if (error) throw error;
@@ -139,8 +138,9 @@ export const StaffAssignments: React.FC<StaffAssignmentsProps> = ({ departmentId
       setSelectedStaff([]);
       setIsAssignOpen(false);
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to assign staff');
+    onError: (error: unknown) => {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to assign staff';
+      toast.error(errorMessage);
     },
   });
 
@@ -157,6 +157,10 @@ export const StaffAssignments: React.FC<StaffAssignmentsProps> = ({ departmentId
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shift-assignments'] });
       toast.success('Assignment removed');
+    },
+    onError: (error: unknown) => {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to remove assignment';
+      toast.error(errorMessage);
     },
   });
 
@@ -189,7 +193,9 @@ export const StaffAssignments: React.FC<StaffAssignmentsProps> = ({ departmentId
     );
   };
 
-  if (schedulesLoading) return <LoadingState message="Loading assignments..." />;
+  if (schedulesLoading) return <LoadingState message="Loading schedules..." />;
+
+  const publishedSchedules = schedules?.filter((s: any) => s.status === 'published') || [];
 
   return (
     <div className="space-y-6">
@@ -197,7 +203,7 @@ export const StaffAssignments: React.FC<StaffAssignmentsProps> = ({ departmentId
       <Card>
         <CardHeader>
           <CardTitle>Assign Staff to Shifts</CardTitle>
-          <CardDescription>Select a schedule, shift, and date to manage assignments</CardDescription>
+          <CardDescription>Select a schedule, shift, and date to manage staff assignments</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-3">
@@ -212,11 +218,17 @@ export const StaffAssignments: React.FC<StaffAssignmentsProps> = ({ departmentId
                   <SelectValue placeholder="Select schedule" />
                 </SelectTrigger>
                 <SelectContent>
-                  {schedules?.map((schedule: any) => (
-                    <SelectItem key={schedule.id} value={schedule.id}>
-                      {schedule.name} ({schedule.status})
-                    </SelectItem>
-                  ))}
+                  {publishedSchedules.length === 0 ? (
+                    <div className="p-2 text-sm text-muted-foreground">
+                      No published schedules available
+                    </div>
+                  ) : (
+                    publishedSchedules.map((schedule: any) => (
+                      <SelectItem key={schedule.id} value={schedule.id}>
+                        {schedule.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -239,7 +251,7 @@ export const StaffAssignments: React.FC<StaffAssignmentsProps> = ({ departmentId
                           className="w-3 h-3 rounded" 
                           style={{ backgroundColor: shift.color }} 
                         />
-                        {shift.name} ({shift.start_time} - {shift.end_time})
+                        {shift.name} ({shift.start_time?.slice(0, 5)} - {shift.end_time?.slice(0, 5)})
                       </div>
                     </SelectItem>
                   ))}
@@ -273,7 +285,7 @@ export const StaffAssignments: React.FC<StaffAssignmentsProps> = ({ departmentId
       {/* Current Assignments */}
       {selectedShift && selectedDate && (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <CardTitle className="flex items-center gap-2">
                 <div 
@@ -282,9 +294,9 @@ export const StaffAssignments: React.FC<StaffAssignmentsProps> = ({ departmentId
                 />
                 {selectedShift.name}
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="mt-1">
                 {format(parseISO(selectedDate), 'EEEE, MMMM d, yyyy')} • 
-                {selectedShift.start_time} - {selectedShift.end_time} •
+                {selectedShift.start_time?.slice(0, 5)} - {selectedShift.end_time?.slice(0, 5)} • 
                 Required: {selectedShift.required_staff} staff
               </CardDescription>
             </div>
@@ -307,25 +319,27 @@ export const StaffAssignments: React.FC<StaffAssignmentsProps> = ({ departmentId
                   <div className="space-y-2 max-h-[300px] overflow-y-auto">
                     {staff?.map((member: any) => {
                       const profile = member.profiles;
-                      const hasConflict = hasVacationConflict(profile?.id);
-                      const isAssigned = isAlreadyAssigned(profile?.id);
+                      if (!profile?.id) return null;
+                      
+                      const hasConflict = hasVacationConflict(profile.id);
+                      const isAssigned = isAlreadyAssigned(profile.id);
 
                       return (
                         <div
                           key={member.user_id}
                           className={`flex items-center justify-between p-3 border rounded-lg ${
-                            isAssigned ? 'opacity-50' : ''
+                            isAssigned ? 'opacity-50 bg-muted/50' : ''
                           }`}
                         >
                           <div className="flex items-center gap-3">
                             <Checkbox
-                              checked={selectedStaff.includes(profile?.id)}
-                              onCheckedChange={() => toggleStaffSelection(profile?.id)}
+                              checked={selectedStaff.includes(profile.id)}
+                              onCheckedChange={() => toggleStaffSelection(profile.id)}
                               disabled={isAssigned}
                             />
                             <div>
-                              <p className="font-medium">{profile?.full_name || 'Unknown'}</p>
-                              <p className="text-sm text-muted-foreground">{profile?.email}</p>
+                              <p className="font-medium">{profile.full_name || 'Unknown'}</p>
+                              <p className="text-sm text-muted-foreground">{profile.email}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -344,7 +358,7 @@ export const StaffAssignments: React.FC<StaffAssignmentsProps> = ({ departmentId
                     })}
                   </div>
 
-                  <div className="flex justify-end gap-2">
+                  <div className="flex justify-end gap-2 pt-4">
                     <Button variant="outline" onClick={() => setIsAssignOpen(false)}>
                       Cancel
                     </Button>
@@ -372,27 +386,28 @@ export const StaffAssignments: React.FC<StaffAssignmentsProps> = ({ departmentId
                       <p className="text-sm text-muted-foreground">{assignment.profiles?.email}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">{assignment.status}</Badge>
+                      <Badge variant="outline" className="capitalize">{assignment.status}</Badge>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => removeAssignment.mutate(assignment.id)}
+                        disabled={removeAssignment.isPending}
                       >
-                        Remove
+                        <X className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-            <EmptyState
-              icon={Users}
-              title="No staff assigned"
-              description="Click 'Assign Staff' to add team members to this shift"
-            />
-          )}
-        </CardContent>
-      </Card>
+              <EmptyState
+                icon={Users}
+                title="No staff assigned"
+                description="Click 'Assign Staff' to add team members to this shift"
+              />
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {!selectedScheduleId && (

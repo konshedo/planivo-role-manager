@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths, isSameDay, parseISO } from 'date-fns';
 import { LoadingState } from '@/components/layout/LoadingState';
+import { EmptyState } from '@/components/layout/EmptyState';
 import { cn } from '@/lib/utils';
 
 interface ShiftCalendarViewProps {
@@ -18,9 +19,9 @@ export const ShiftCalendarView: React.FC<ShiftCalendarViewProps> = ({ department
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedScheduleId, setSelectedScheduleId] = useState<string>('all');
 
-  // Fetch published schedules
+  // Fetch published and draft schedules
   const { data: schedules, isLoading: schedulesLoading } = useQuery({
-    queryKey: ['schedules-published', departmentId],
+    queryKey: ['schedules-calendar', departmentId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('schedules')
@@ -81,6 +82,16 @@ export const ShiftCalendarView: React.FC<ShiftCalendarViewProps> = ({ department
 
   if (schedulesLoading) return <LoadingState message="Loading calendar..." />;
 
+  if (!schedules || schedules.length === 0) {
+    return (
+      <EmptyState
+        icon={Calendar}
+        title="No schedules available"
+        description="Create and publish schedules to see them on the calendar"
+      />
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Controls */}
@@ -117,11 +128,11 @@ export const ShiftCalendarView: React.FC<ShiftCalendarViewProps> = ({ department
 
       {/* Calendar Grid */}
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="p-2 sm:p-4">
           {/* Day headers */}
           <div className="grid grid-cols-7 gap-1 mb-2">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-              <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
+              <div key={day} className="text-center text-xs sm:text-sm font-medium text-muted-foreground py-2">
                 {day}
               </div>
             ))}
@@ -131,18 +142,17 @@ export const ShiftCalendarView: React.FC<ShiftCalendarViewProps> = ({ department
           <div className="grid grid-cols-7 gap-1">
             {/* Empty cells for days before month start */}
             {Array.from({ length: monthStart.getDay() }).map((_, i) => (
-              <div key={`empty-start-${i}`} className="min-h-[100px] bg-muted/20 rounded" />
+              <div key={`empty-start-${i}`} className="min-h-[80px] sm:min-h-[100px] bg-muted/20 rounded" />
             ))}
 
             {monthDays.map((day) => {
               const dayAssignments = getAssignmentsForDay(day);
-              const hasAssignments = dayAssignments.length > 0;
 
               return (
                 <div
                   key={day.toISOString()}
                   className={cn(
-                    "min-h-[100px] border rounded p-1 transition-colors",
+                    "min-h-[80px] sm:min-h-[100px] border rounded p-1 transition-colors",
                     isToday(day) && "bg-primary/10 border-primary",
                     !isSameMonth(day, currentMonth) && "opacity-50"
                   )}
@@ -150,7 +160,7 @@ export const ShiftCalendarView: React.FC<ShiftCalendarViewProps> = ({ department
                   <div className="flex justify-between items-start">
                     <span
                       className={cn(
-                        "text-sm font-medium",
+                        "text-xs sm:text-sm font-medium",
                         isToday(day) && "text-primary"
                       )}
                     >
@@ -170,7 +180,8 @@ export const ShiftCalendarView: React.FC<ShiftCalendarViewProps> = ({ department
                           borderLeft: `2px solid ${item.shift.color}`,
                         }}
                       >
-                        {item.shift.name}
+                        <span className="hidden sm:inline">{item.shift.name}</span>
+                        <span className="sm:hidden">{item.shift.name?.charAt(0)}</span>
                         {item.assignments.length > 0 && (
                           <span className="ml-1 opacity-75">
                             ({item.assignments.length})
@@ -180,7 +191,7 @@ export const ShiftCalendarView: React.FC<ShiftCalendarViewProps> = ({ department
                     ))}
                     {dayAssignments.length > 3 && (
                       <div className="text-xs text-muted-foreground">
-                        +{dayAssignments.length - 3} more
+                        +{dayAssignments.length - 3}
                       </div>
                     )}
                   </div>
@@ -190,7 +201,7 @@ export const ShiftCalendarView: React.FC<ShiftCalendarViewProps> = ({ department
 
             {/* Empty cells for days after month end */}
             {Array.from({ length: 6 - monthEnd.getDay() }).map((_, i) => (
-              <div key={`empty-end-${i}`} className="min-h-[100px] bg-muted/20 rounded" />
+              <div key={`empty-end-${i}`} className="min-h-[80px] sm:min-h-[100px] bg-muted/20 rounded" />
             ))}
           </div>
         </CardContent>

@@ -7,6 +7,7 @@ import { ShiftCalendarView } from './ShiftCalendarView';
 import { StaffAssignments } from './StaffAssignments';
 import { SchedulingDashboard } from './SchedulingDashboard';
 import { StaffScheduleView } from './StaffScheduleView';
+import { EmptyState } from '@/components/layout/EmptyState';
 
 interface SchedulingHubProps {
   departmentId?: string;
@@ -27,9 +28,11 @@ export const SchedulingHub: React.FC<SchedulingHubProps> = ({ departmentId }) =>
 
   if (!effectiveDepartmentId) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-muted-foreground">No department assigned</p>
-      </div>
+      <EmptyState
+        icon={Calendar}
+        title="No department assigned"
+        description="You need to be assigned to a department to view schedules"
+      />
     );
   }
 
