@@ -113,19 +113,47 @@ const UnifiedUserCreation = ({ open, onOpenChange }: UnifiedUserCreationProps) =
     },
   });
 
-  // Fetch departments for selected facility
+  // Get workspace_id from selected facility for template lookup
+  const selectedFacility = facilities?.find(f => f.id === facilityId);
+  const selectedWorkspaceId = selectedFacility?.workspace_id;
+
+  // Fetch departments - try workspace-assigned templates first, fall back to facility-specific
   const { data: departments } = useQuery({
-    queryKey: ['departments', facilityId],
+    queryKey: ['departments-for-user-creation', facilityId, selectedWorkspaceId],
     queryFn: async () => {
       if (!facilityId) return [];
+      
+      // First, check for workspace-assigned template departments
+      if (selectedWorkspaceId) {
+        const { data: workspaceDepts, error: wError } = await supabase
+          .from('workspace_departments')
+          .select(`
+            department_template_id,
+            departments!inner(id, name, is_template)
+          `)
+          .eq('workspace_id', selectedWorkspaceId);
+        
+        if (!wError && workspaceDepts && workspaceDepts.length > 0) {
+          // Return template departments assigned to the workspace
+          return workspaceDepts
+            .filter(wd => wd.departments)
+            .map(wd => ({
+              id: wd.departments.id,
+              name: wd.departments.name
+            }));
+        }
+      }
+      
+      // Fall back to facility-specific departments
       const { data, error } = await supabase
         .from('departments')
         .select('id, name')
         .eq('facility_id', facilityId)
         .is('parent_department_id', null)
         .order('name');
+      
       if (error) throw error;
-      return data;
+      return data || [];
     },
     enabled: !!facilityId,
   });
