@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
@@ -8,12 +8,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, Send, Clock, Users, Clipboard } from 'lucide-react';
+import { Plus, Edit, Trash2, Send, Clock, Users, Clipboard, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { LoadingState } from '@/components/layout/LoadingState';
 import { EmptyState } from '@/components/layout/EmptyState';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ScheduleManagerProps {
   departmentId: string;
@@ -41,9 +43,68 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({ departmentId }
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [shiftCount, setShiftCount] = useState<number>(1);
+  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([departmentId]);
   const [shifts, setShifts] = useState<ShiftConfig[]>([
     { name: 'Morning Shift', startTime: '06:00', endTime: '14:00', requiredStaff: 1, color: '#3b82f6' }
   ]);
+
+  // Initialize with current department
+  useEffect(() => {
+    if (departmentId && !selectedDepartments.includes(departmentId)) {
+      setSelectedDepartments([departmentId]);
+    }
+  }, [departmentId]);
+
+  // Fetch available departments (templates assigned to workspace or facility-specific)
+  const { data: availableDepartments } = useQuery({
+    queryKey: ['available-departments-for-scheduling', departmentId],
+    queryFn: async () => {
+      // Get current department's facility and workspace info
+      const { data: currentDept } = await supabase
+        .from('departments')
+        .select('id, name, facility_id, facilities(workspace_id)')
+        .eq('id', departmentId)
+        .maybeSingle();
+
+      if (!currentDept) return [];
+
+      const workspaceId = (currentDept.facilities as any)?.workspace_id;
+      
+      // Try workspace-assigned templates first
+      if (workspaceId) {
+        const { data: workspaceDepts } = await supabase
+          .from('workspace_departments')
+          .select(`
+            department_template_id,
+            departments!inner(id, name)
+          `)
+          .eq('workspace_id', workspaceId);
+
+        if (workspaceDepts && workspaceDepts.length > 0) {
+          return workspaceDepts
+            .filter(wd => wd.departments)
+            .map(wd => ({
+              id: wd.departments.id,
+              name: wd.departments.name
+            }));
+        }
+      }
+
+      // Fall back to facility-specific departments
+      if (currentDept.facility_id) {
+        const { data: facilityDepts } = await supabase
+          .from('departments')
+          .select('id, name')
+          .eq('facility_id', currentDept.facility_id)
+          .is('parent_department_id', null)
+          .order('name');
+        
+        return facilityDepts || [];
+      }
+
+      return [{ id: currentDept.id, name: currentDept.name }];
+    },
+  });
 
   // Fetch schedules
   const { data: schedules, isLoading } = useQuery({
@@ -163,7 +224,16 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({ departmentId }
     setStartDate('');
     setEndDate('');
     setShiftCount(1);
+    setSelectedDepartments([departmentId]);
     setShifts([{ name: 'Morning Shift', startTime: '06:00', endTime: '14:00', requiredStaff: 1, color: '#3b82f6' }]);
+  };
+
+  const toggleDepartment = (deptId: string) => {
+    setSelectedDepartments(prev => 
+      prev.includes(deptId)
+        ? prev.filter(id => id !== deptId)
+        : [...prev, deptId]
+    );
   };
 
   const handleShiftCountChange = (value: string) => {
@@ -258,6 +328,43 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({ departmentId }
                 </div>
               </div>
 
+              {/* Department Selection Checklist */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  <Label>Departments *</Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Select the departments this schedule applies to
+                </p>
+                <ScrollArea className="h-[150px] border rounded-md p-3">
+                  <div className="space-y-2">
+                    {availableDepartments && availableDepartments.length > 0 ? (
+                      availableDepartments.map((dept) => (
+                        <div key={dept.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`dept-${dept.id}`}
+                            checked={selectedDepartments.includes(dept.id)}
+                            onCheckedChange={() => toggleDepartment(dept.id)}
+                          />
+                          <Label 
+                            htmlFor={`dept-${dept.id}`} 
+                            className="cursor-pointer text-sm font-normal"
+                          >
+                            {dept.name}
+                          </Label>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No departments available</p>
+                    )}
+                  </div>
+                </ScrollArea>
+                {selectedDepartments.length === 0 && (
+                  <p className="text-xs text-destructive">Please select at least one department</p>
+                )}
+              </div>
+
               {/* Shift Count Selector */}
               <div className="space-y-3">
                 <Label>Number of Shifts</Label>
@@ -342,7 +449,7 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({ departmentId }
                 </Button>
                 <Button
                   onClick={() => createSchedule.mutate()}
-                  disabled={!name || !startDate || !endDate || createSchedule.isPending}
+                  disabled={!name || !startDate || !endDate || selectedDepartments.length === 0 || createSchedule.isPending}
                 >
                   {createSchedule.isPending ? 'Creating...' : 'Create Schedule'}
                 </Button>
