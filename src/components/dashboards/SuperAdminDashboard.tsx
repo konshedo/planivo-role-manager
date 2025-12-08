@@ -1,7 +1,7 @@
 import { PageHeader } from '@/components/layout';
 import { StatsCard } from '@/components/shared';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Building2, Calendar, ClipboardList, CheckCircle, XCircle, Clock, TrendingUp, Building, LayoutDashboard, Folders, UserCircle, FolderTree, Settings, Code, CalendarClock } from 'lucide-react';
+import { Users, Building2, Calendar, ClipboardList, CheckCircle, XCircle, Clock, TrendingUp, Building, LayoutDashboard, Folders, UserCircle, FolderTree, Settings, Code, CalendarClock, GraduationCap } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Separator } from '@/components/ui/separator';
@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { SourceCodeHub } from '@/components/admin/SourceCodeHub';
 import { FacilitySchedulingHub } from '@/components/scheduling';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
+import TrainingHub from '@/components/training/TrainingHub';
 
 const SuperAdminDashboard = () => {
   const { modules, hasAccess } = useModuleContext();
@@ -228,7 +229,13 @@ const SuperAdminDashboard = () => {
           description="Manage schedules and shift assignments across facilities"
         />
       )}
-      {!['dashboard','modules','validator','organization','users','vacation','tasks','staff','messaging','notifications','source-code','scheduling'].includes(activeTab) && (
+      {activeTab === 'training' && (
+        <PageHeader 
+          title="Meeting & Training" 
+          description="Create and manage meetings and training sessions"
+        />
+      )}
+      {!['dashboard','modules','validator','organization','users','vacation','tasks','staff','messaging','notifications','source-code','scheduling','training'].includes(activeTab) && (
         <PageHeader 
           title="System Overview" 
           description="Manage your entire system from one centralized dashboard"
@@ -475,6 +482,12 @@ const SuperAdminDashboard = () => {
         {activeTab === 'scheduling' && (
           <ModuleGuard moduleKey="scheduling">
             <FacilitySchedulingHub />
+          </ModuleGuard>
+        )}
+
+        {activeTab === 'training' && hasAccess('training') && (
+          <ModuleGuard moduleKey="training">
+            <TrainingHub />
           </ModuleGuard>
         )}
       </div>

@@ -4,10 +4,11 @@ import { VacationHub } from '@/modules/vacation';
 import { NotificationHub } from '@/modules/notifications';
 import { MessagingHub } from '@/modules/messaging';
 import { SchedulingHub } from '@/components/scheduling';
+import TrainingHub from '@/components/training/TrainingHub';
 import { ModuleGuard } from '@/components/ModuleGuard';
 import { useModuleContext } from '@/contexts/ModuleContext';
 import { useLocation } from 'react-router-dom';
-import { ClipboardList, Calendar, MessageSquare, Bell, CalendarClock } from 'lucide-react';
+import { ClipboardList, Calendar, MessageSquare, Bell, CalendarClock, GraduationCap } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { ErrorState } from '@/components/layout/ErrorState';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
@@ -71,6 +72,12 @@ const StaffDashboard = () => {
           description="View your assigned shifts and work schedule"
         />
       )}
+      {activeTab === 'training' && (
+        <PageHeader 
+          title="Meeting & Training" 
+          description="View and register for meetings and training sessions"
+        />
+      )}
       
       <div className="space-y-4">
         {!activeTab && (
@@ -121,6 +128,12 @@ const StaffDashboard = () => {
         {activeTab === 'scheduling' && hasAccess('scheduling') && (
           <ModuleGuard moduleKey="scheduling">
             <SchedulingHub />
+          </ModuleGuard>
+        )}
+
+        {activeTab === 'training' && hasAccess('training') && (
+          <ModuleGuard moduleKey="training">
+            <TrainingHub />
           </ModuleGuard>
         )}
       </div>

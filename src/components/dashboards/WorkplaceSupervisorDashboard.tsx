@@ -8,7 +8,8 @@ import TaskManager from '@/components/tasks/TaskManager';
 import VacationApprovalWorkflow from '@/components/vacation/VacationApprovalWorkflow';
 import VacationCalendarView from '@/components/vacation/VacationCalendarView';
 import { VacationHub } from '@/modules/vacation';
-import { ClipboardList, CheckSquare, AlertCircle } from 'lucide-react';
+import TrainingHub from '@/components/training/TrainingHub';
+import { ClipboardList, CheckSquare, AlertCircle, GraduationCap } from 'lucide-react';
 import VacationConflictDashboard from '@/components/vacation/VacationConflictDashboard';
 import { UnifiedUserHub } from '@/components/users';
 import { ModuleGuard } from '@/components/ModuleGuard';
@@ -241,6 +242,12 @@ const WorkplaceSupervisorDashboard = () => {
         {activeTab === 'notifications' && hasAccess('notifications') && (
           <ModuleGuard moduleKey="notifications">
             <NotificationHub />
+          </ModuleGuard>
+        )}
+
+        {activeTab === 'training' && hasAccess('training') && (
+          <ModuleGuard moduleKey="training">
+            <TrainingHub />
           </ModuleGuard>
         )}
       </div>

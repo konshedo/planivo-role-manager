@@ -13,7 +13,8 @@ import {
   User,
   ShieldCheck,
   CalendarClock,
-  Code
+  Code,
+  GraduationCap
 } from 'lucide-react';
 import { useModuleContext } from '@/contexts/ModuleContext';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -49,6 +50,7 @@ const moduleConfig = [
   { key: 'vacation_planning', label: 'Vacation', icon: Calendar, path: '/dashboard?tab=vacation' },
   { key: 'scheduling', label: 'Scheduling', icon: CalendarClock, path: '/dashboard?tab=scheduling' },
   { key: 'task_management', label: 'Tasks', icon: CheckSquare, path: '/dashboard?tab=tasks' },
+  { key: 'training', label: 'Meeting & Training', icon: GraduationCap, path: '/dashboard?tab=training' },
   { key: 'messaging', label: 'Messages', icon: MessageSquare, path: '/dashboard?tab=messaging' },
   { key: 'notifications', label: 'Notifications', icon: Bell, path: '/dashboard?tab=notifications' },
 ];
