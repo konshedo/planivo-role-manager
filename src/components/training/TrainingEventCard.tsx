@@ -2,6 +2,7 @@ import { format, formatDistanceToNow, isPast, isFuture } from 'date-fns';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,8 @@ import {
   CheckCircle, 
   XCircle,
   ExternalLink,
-  Loader2
+  Loader2,
+  Play
 } from 'lucide-react';
 
 interface TrainingEvent {
@@ -32,6 +34,7 @@ interface TrainingEvent {
   status: string;
   created_by: string;
   organization_id: string | null;
+  enable_video_conference?: boolean;
 }
 
 interface TrainingEventCardProps {
@@ -48,6 +51,7 @@ const TrainingEventCard = ({
   onViewRegistrations 
 }: TrainingEventCardProps) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   // Check if user is already registered
@@ -246,6 +250,18 @@ const TrainingEventCard = ({
       </CardContent>
 
       <CardFooter className="flex flex-wrap gap-2 pt-4 border-t">
+        {/* Video Conference Join Button */}
+        {event.enable_video_conference && isRegistered && !isEventPast && (
+          <Button 
+            size="sm"
+            className="bg-emerald-600 hover:bg-emerald-700"
+            onClick={() => navigate(`/meeting?eventId=${event.id}`)}
+          >
+            <Play className="h-4 w-4 mr-2" />
+            Join Video Meeting
+          </Button>
+        )}
+
         {!isAdminView && !isEventPast && event.status === 'published' && (
           <>
             {isRegistered ? (

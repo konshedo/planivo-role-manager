@@ -216,6 +216,47 @@ export type Database = {
           },
         ]
       }
+      jitsi_server_config: {
+        Row: {
+          app_id: string | null
+          app_secret: string | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          organization_id: string | null
+          server_url: string
+          updated_at: string
+        }
+        Insert: {
+          app_id?: string | null
+          app_secret?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          organization_id?: string | null
+          server_url: string
+          updated_at?: string
+        }
+        Update: {
+          app_id?: string | null
+          app_secret?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          organization_id?: string | null
+          server_url?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jitsi_server_config_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
@@ -717,53 +758,125 @@ export type Database = {
           },
         ]
       }
+      training_attendance: {
+        Row: {
+          attendance_status: string | null
+          created_at: string
+          duration_minutes: number | null
+          event_id: string
+          id: string
+          ip_address: string | null
+          joined_at: string
+          left_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attendance_status?: string | null
+          created_at?: string
+          duration_minutes?: number | null
+          event_id: string
+          id?: string
+          ip_address?: string | null
+          joined_at?: string
+          left_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attendance_status?: string | null
+          created_at?: string
+          duration_minutes?: number | null
+          event_id?: string
+          id?: string
+          ip_address?: string | null
+          joined_at?: string
+          left_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_attendance_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "training_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_attendance_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_events: {
         Row: {
+          allow_recording: boolean | null
           created_at: string
           created_by: string
           description: string | null
+          enable_video_conference: boolean | null
           end_datetime: string
           event_type: Database["public"]["Enums"]["training_event_type"]
           id: string
+          jitsi_moderator_password: string | null
+          jitsi_room_name: string | null
           location_address: string | null
           location_type: Database["public"]["Enums"]["training_location_type"]
           max_participants: number | null
+          max_video_participants: number | null
           online_link: string | null
           organization_id: string | null
+          require_lobby: boolean | null
           start_datetime: string
           status: Database["public"]["Enums"]["training_event_status"]
           title: string
           updated_at: string
         }
         Insert: {
+          allow_recording?: boolean | null
           created_at?: string
           created_by: string
           description?: string | null
+          enable_video_conference?: boolean | null
           end_datetime: string
           event_type?: Database["public"]["Enums"]["training_event_type"]
           id?: string
+          jitsi_moderator_password?: string | null
+          jitsi_room_name?: string | null
           location_address?: string | null
           location_type?: Database["public"]["Enums"]["training_location_type"]
           max_participants?: number | null
+          max_video_participants?: number | null
           online_link?: string | null
           organization_id?: string | null
+          require_lobby?: boolean | null
           start_datetime: string
           status?: Database["public"]["Enums"]["training_event_status"]
           title: string
           updated_at?: string
         }
         Update: {
+          allow_recording?: boolean | null
           created_at?: string
           created_by?: string
           description?: string | null
+          enable_video_conference?: boolean | null
           end_datetime?: string
           event_type?: Database["public"]["Enums"]["training_event_type"]
           id?: string
+          jitsi_moderator_password?: string | null
+          jitsi_room_name?: string | null
           location_address?: string | null
           location_type?: Database["public"]["Enums"]["training_location_type"]
           max_participants?: number | null
+          max_video_participants?: number | null
           online_link?: string | null
           organization_id?: string | null
+          require_lobby?: boolean | null
           start_datetime?: string
           status?: Database["public"]["Enums"]["training_event_status"]
           title?: string
@@ -775,6 +888,48 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_meeting_chat: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          message: string
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          message: string
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          message?: string
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_meeting_chat_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "training_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_meeting_chat_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

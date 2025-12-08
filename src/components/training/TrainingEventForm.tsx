@@ -9,12 +9,12 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Loader2, Calendar, MapPin, Link as LinkIcon, Users } from 'lucide-react';
+import { Loader2, Calendar, MapPin, Link as LinkIcon, Users, Video } from 'lucide-react';
 
 const eventSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters').max(200),
@@ -28,6 +28,11 @@ const eventSchema = z.object({
   organization_id: z.string().uuid('Please select an organization'),
   max_participants: z.number().min(1).optional().nullable(),
   status: z.enum(['draft', 'published']),
+  // Video conferencing fields
+  enable_video_conference: z.boolean().optional(),
+  allow_recording: z.boolean().optional(),
+  require_lobby: z.boolean().optional(),
+  max_video_participants: z.number().min(2).max(500).optional(),
 });
 
 type EventFormData = z.infer<typeof eventSchema>;
@@ -109,13 +114,24 @@ const TrainingEventForm = ({ eventId, onSuccess }: TrainingEventFormProps) => {
       organization_id: existingEvent?.organization_id || userOrganization?.id || '',
       max_participants: existingEvent?.max_participants || null,
       status: (existingEvent?.status as EventFormData['status']) || 'draft',
+      // Video conferencing defaults
+      enable_video_conference: existingEvent?.enable_video_conference || false,
+      allow_recording: existingEvent?.allow_recording || false,
+      require_lobby: existingEvent?.require_lobby ?? true,
+      max_video_participants: existingEvent?.max_video_participants || 100,
     },
   });
 
   const locationType = form.watch('location_type');
+  const enableVideoConference = form.watch('enable_video_conference');
 
   const createEventMutation = useMutation({
     mutationFn: async (data: EventFormData) => {
+      // Generate unique room name for video conferences
+      const jitsiRoomName = data.enable_video_conference 
+        ? `planivo-${Date.now()}-${Math.random().toString(36).substring(7)}`
+        : null;
+
       const eventData = {
         title: data.title,
         description: data.description || null,
@@ -129,6 +145,12 @@ const TrainingEventForm = ({ eventId, onSuccess }: TrainingEventFormProps) => {
         max_participants: data.max_participants || null,
         status: data.status,
         created_by: user?.id!,
+        // Video conferencing fields
+        enable_video_conference: data.enable_video_conference || false,
+        allow_recording: data.allow_recording || false,
+        require_lobby: data.require_lobby ?? true,
+        max_video_participants: data.max_video_participants || 100,
+        jitsi_room_name: jitsiRoomName,
       };
 
       if (eventId) {
@@ -424,6 +446,82 @@ const TrainingEventForm = ({ eventId, onSuccess }: TrainingEventFormProps) => {
                 )}
               />
             </div>
+
+            {/* Video Conferencing Section */}
+            <Card className="border-dashed">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Video className="h-4 w-4" />
+                  Video Conferencing
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="enable_video_conference"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                      <div className="space-y-0.5">
+                        <FormLabel>Enable Video Conference</FormLabel>
+                        <p className="text-xs text-muted-foreground">
+                          Allow participants to join via video meeting
+                        </p>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                {enableVideoConference && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="max_video_participants"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Max Video Participants</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={2}
+                              max={500}
+                              {...field}
+                              onChange={e => field.onChange(parseInt(e.target.value) || 100)}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="allow_recording"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center gap-3 pt-6">
+                          <FormControl>
+                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                          <FormLabel className="!mt-0">Allow Recording</FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="require_lobby"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center gap-3 pt-6">
+                          <FormControl>
+                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                          <FormLabel className="!mt-0">Enable Lobby</FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             <div className="flex gap-3 pt-4">
               <Button type="submit" disabled={isSubmitting}>
