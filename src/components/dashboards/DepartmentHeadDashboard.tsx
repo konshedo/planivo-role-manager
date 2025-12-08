@@ -8,7 +8,8 @@ import { TaskHub } from '@/modules/tasks';
 import { NotificationHub } from '@/modules/notifications';
 import { MessagingHub } from '@/modules/messaging';
 import { SchedulingHub } from '@/components/scheduling';
-import { Calendar, ClipboardList, UserPlus, Bell, MessageSquare, CalendarClock } from 'lucide-react';
+import TrainingHub from '@/components/training/TrainingHub';
+import { Calendar, ClipboardList, UserPlus, Bell, MessageSquare, CalendarClock, GraduationCap } from 'lucide-react';
 import { ModuleGuard } from '@/components/ModuleGuard';
 import { useModuleContext } from '@/contexts/ModuleContext';
 import { useLocation } from 'react-router-dom';
@@ -230,6 +231,12 @@ const DepartmentHeadDashboard = () => {
         {activeTab === 'scheduling' && hasAccess('scheduling') && (
           <ModuleGuard moduleKey="scheduling">
             <SchedulingHub departmentId={userRole.department_id} />
+          </ModuleGuard>
+        )}
+
+        {activeTab === 'training' && hasAccess('training') && (
+          <ModuleGuard moduleKey="training">
+            <TrainingHub />
           </ModuleGuard>
         )}
 

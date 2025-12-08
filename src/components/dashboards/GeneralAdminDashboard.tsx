@@ -11,6 +11,7 @@ import WorkspaceManagement from '@/components/admin/WorkspaceManagement';
 import CategoryDepartmentManagement from '@/components/admin/CategoryDepartmentManagement';
 import WorkspaceModuleManagement from '@/components/admin/WorkspaceModuleManagement';
 import { VacationHub } from '@/modules/vacation';
+import TrainingHub from '@/components/training/TrainingHub';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ModuleGuard } from '@/components/ModuleGuard';
@@ -125,6 +126,12 @@ const GeneralAdminDashboard = () => {
           description="Manage vacation plans and approvals for this workspace"
         />
       )}
+      {activeTab === 'training' && (
+        <PageHeader 
+          title="Meeting & Training" 
+          description="Create and manage meetings and training sessions"
+        />
+      )}
       
       <div className="space-y-6">
         {/* Stats Grid - Show in overview or on tabs */}
@@ -177,6 +184,12 @@ const GeneralAdminDashboard = () => {
           {activeTab === 'vacation' && hasAccess('vacation_planning') && (
             <ModuleGuard moduleKey="vacation_planning">
               <VacationHub />
+            </ModuleGuard>
+          )}
+
+          {activeTab === 'training' && hasAccess('training') && (
+            <ModuleGuard moduleKey="training">
+              <TrainingHub />
             </ModuleGuard>
           )}
         </div>

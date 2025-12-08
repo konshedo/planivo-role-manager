@@ -26,8 +26,8 @@ const TrainingHub = () => {
     <ErrorBoundary
       fallback={
         <ErrorState
-          title="Training Module Error"
-          message="Failed to load training module"
+          title="Meeting & Training Error"
+          message="Failed to load meeting & training module"
           onRetry={() => window.location.reload()}
         />
       }

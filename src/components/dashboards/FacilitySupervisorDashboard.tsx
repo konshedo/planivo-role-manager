@@ -8,7 +8,8 @@ import TaskManager from '@/components/tasks/TaskManager';
 import VacationApprovalWorkflow from '@/components/vacation/VacationApprovalWorkflow';
 import VacationCalendarView from '@/components/vacation/VacationCalendarView';
 import { VacationHub } from '@/modules/vacation';
-import { ClipboardList, CheckSquare, AlertCircle, CalendarClock } from 'lucide-react';
+import TrainingHub from '@/components/training/TrainingHub';
+import { ClipboardList, CheckSquare, AlertCircle, CalendarClock, GraduationCap } from 'lucide-react';
 import VacationConflictDashboard from '@/components/vacation/VacationConflictDashboard';
 import { UnifiedUserHub } from '@/components/users';
 import { ModuleGuard } from '@/components/ModuleGuard';
@@ -210,6 +211,12 @@ const FacilitySupervisorDashboard = () => {
         {activeTab === 'scheduling' && hasAccess('scheduling') && (
           <ModuleGuard moduleKey="scheduling">
             <FacilitySchedulingHub facilityId={userRole.facility_id} />
+          </ModuleGuard>
+        )}
+
+        {activeTab === 'training' && hasAccess('training') && (
+          <ModuleGuard moduleKey="training">
+            <TrainingHub />
           </ModuleGuard>
         )}
       </div>

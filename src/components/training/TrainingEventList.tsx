@@ -36,8 +36,8 @@ const TrainingEventList = ({
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
 
   // Subscribe to real-time updates
-  useRealtimeSubscription('training_events');
-  useRealtimeSubscription('training_registrations');
+  useRealtimeSubscription({ table: 'training_events', invalidateQueries: ['training-events'] });
+  useRealtimeSubscription({ table: 'training_registrations', invalidateQueries: ['training-events', 'training-registration'] });
 
   const isSuperAdmin = roles?.some(r => r.role === 'super_admin');
 
