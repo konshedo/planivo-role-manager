@@ -388,36 +388,39 @@ const VacationPlanner = ({ departmentId, maxSplits = 6, staffOnly = false }: Vac
             </div>
             <div className="space-y-4">
               {splits.map((split, index) => (
-                <div key={index} className="border p-4 rounded-lg space-y-2">
+                <div key={index} className="border p-3 sm:p-4 rounded-lg space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="font-semibold">Split {index + 1}</span>
+                    <span className="font-semibold text-sm sm:text-base">Split {index + 1}</span>
                     <Button
                       type="button"
                       size="sm"
                       variant="destructive"
                       onClick={() => removeSplit(index)}
+                      className="min-h-[44px] min-w-[44px]"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
-                      <Label>Start Date</Label>
+                      <Label className="text-sm">Start Date</Label>
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button
                             type="button"
                             variant="outline"
                             className={cn(
-                              'w-full justify-start text-left font-normal',
+                              'w-full justify-start text-left font-normal min-h-[44px] text-sm',
                               !split.start_date && 'text-muted-foreground'
                             )}
                           >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {split.start_date ? format(split.start_date, 'PPP') : 'Pick date'}
+                            <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                            <span className="truncate">
+                              {split.start_date ? format(split.start_date, 'PP') : 'Pick date'}
+                            </span>
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0 z-50 pointer-events-auto" align="start">
+                        <PopoverContent className="w-auto p-0 z-50 pointer-events-auto max-w-[calc(100vw-2rem)]" align="start" side="bottom">
                           <Calendar
                             mode="single"
                             selected={split.start_date}
@@ -429,22 +432,24 @@ const VacationPlanner = ({ departmentId, maxSplits = 6, staffOnly = false }: Vac
                       </Popover>
                     </div>
                     <div>
-                      <Label>End Date</Label>
+                      <Label className="text-sm">End Date</Label>
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button
                             type="button"
                             variant="outline"
                             className={cn(
-                              'w-full justify-start text-left font-normal',
+                              'w-full justify-start text-left font-normal min-h-[44px] text-sm',
                               !split.end_date && 'text-muted-foreground'
                             )}
                           >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {split.end_date ? format(split.end_date, 'PPP') : 'Pick date'}
+                            <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                            <span className="truncate">
+                              {split.end_date ? format(split.end_date, 'PP') : 'Pick date'}
+                            </span>
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0 z-50 pointer-events-auto" align="start">
+                        <PopoverContent className="w-auto p-0 z-50 pointer-events-auto max-w-[calc(100vw-2rem)]" align="start" side="bottom">
                           <Calendar
                             mode="single"
                             selected={split.end_date}

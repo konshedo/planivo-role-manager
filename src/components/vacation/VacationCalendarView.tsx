@@ -201,17 +201,17 @@ export default function VacationCalendarView({ departmentId }: VacationCalendarV
   const upcomingVacations = getUpcomingVacations();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <Card className="border-2">
-        <CardHeader className="space-y-4">
+        <CardHeader className="space-y-3 sm:space-y-4 px-4 sm:px-6">
           <div className="flex items-center gap-2">
-            <CalendarDays className="h-6 w-6 text-primary" />
-            <div>
-              <CardTitle className="text-2xl">Vacation Calendar</CardTitle>
-              <CardDescription className="mt-1">
-                {statusFilter === 'approved' ? 'Showing approved vacations only' :
-                 statusFilter === 'pending' ? 'Showing pending vacations only' :
-                 'Showing all vacations'}
+            <CalendarDays className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" />
+            <div className="min-w-0">
+              <CardTitle className="text-xl sm:text-2xl">Vacation Calendar</CardTitle>
+              <CardDescription className="mt-1 text-sm">
+                {statusFilter === 'approved' ? 'Approved only' :
+                 statusFilter === 'pending' ? 'Pending only' :
+                 'All vacations'}
               </CardDescription>
             </div>
           </div>
@@ -219,14 +219,14 @@ export default function VacationCalendarView({ departmentId }: VacationCalendarV
           {/* Filter Controls */}
           <div className="flex flex-col gap-3 pt-2">
             {/* Status Filters Row */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-muted-foreground min-w-[80px]">Status:</span>
-              <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col xs:flex-row xs:items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground shrink-0">Status:</span>
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
                 <Button
                   variant={statusFilter === 'approved' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setStatusFilter('approved')}
-                  className="min-w-[100px]"
+                  className="min-h-[40px] px-3 text-xs sm:text-sm"
                 >
                   Approved
                 </Button>
@@ -234,7 +234,7 @@ export default function VacationCalendarView({ departmentId }: VacationCalendarV
                   variant={statusFilter === 'pending' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setStatusFilter('pending')}
-                  className="min-w-[100px]"
+                  className="min-h-[40px] px-3 text-xs sm:text-sm"
                 >
                   Pending
                 </Button>
@@ -242,7 +242,7 @@ export default function VacationCalendarView({ departmentId }: VacationCalendarV
                   variant={statusFilter === 'all' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setStatusFilter('all')}
-                  className="min-w-[100px]"
+                  className="min-h-[40px] px-3 text-xs sm:text-sm"
                 >
                   All
                 </Button>
@@ -250,118 +250,119 @@ export default function VacationCalendarView({ departmentId }: VacationCalendarV
             </div>
             
             {/* Time Range Filters Row */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-muted-foreground min-w-[80px]">Time Range:</span>
-              <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col xs:flex-row xs:items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground shrink-0">Range:</span>
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
                 <Button
                   variant={timeFilter === '30' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setTimeFilter('30')}
-                  className="min-w-[120px]"
+                  className="min-h-[40px] px-2 sm:px-3 text-xs sm:text-sm"
                 >
-                  Next 30 Days
+                  30d
                 </Button>
                 <Button
                   variant={timeFilter === '60' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setTimeFilter('60')}
-                  className="min-w-[120px]"
+                  className="min-h-[40px] px-2 sm:px-3 text-xs sm:text-sm"
                 >
-                  Next 60 Days
+                  60d
                 </Button>
                 <Button
                   variant={timeFilter === '90' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setTimeFilter('90')}
-                  className="min-w-[120px]"
+                  className="min-h-[40px] px-2 sm:px-3 text-xs sm:text-sm"
                 >
-                  Next 90 Days
+                  90d
                 </Button>
                 <Button
                   variant={timeFilter === 'all' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setTimeFilter('all')}
-                  className="min-w-[120px]"
+                  className="min-h-[40px] px-2 sm:px-3 text-xs sm:text-sm"
                 >
-                  All Time
+                  All
                 </Button>
               </div>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-6">
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={setSelectedDate}
-            numberOfMonths={2}
-            className="rounded-md w-full"
-            classNames={{
-              months: "flex flex-col lg:flex-row gap-8 w-full justify-center",
-              month: "space-y-4 flex-1",
-              caption: "flex justify-center pt-1 relative items-center mb-6",
-              caption_label: "text-xl font-bold",
-              nav: "space-x-1 flex items-center",
-              nav_button: "h-10 w-10 bg-transparent p-0 opacity-50 hover:opacity-100 hover:bg-accent rounded-md transition-opacity",
-              nav_button_previous: "absolute left-0",
-              nav_button_next: "absolute right-0",
-              table: "w-full border-collapse",
-              head_row: "flex w-full mb-2",
-              head_cell: "text-muted-foreground rounded-md font-semibold text-sm flex-1 text-center py-2",
-              row: "flex w-full mt-1",
-              cell: "relative p-0.5 text-center focus-within:relative focus-within:z-20 flex-1",
-              day: "h-14 w-full p-0 font-normal hover:bg-accent rounded-md transition-all",
-              day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
-              day_today: "bg-accent text-accent-foreground font-bold ring-2 ring-primary ring-offset-2",
-              day_outside: "text-muted-foreground opacity-30",
-              day_disabled: "text-muted-foreground opacity-30",
-              day_hidden: "invisible",
-            }}
-            components={{
-              Day: ({ date, displayMonth, ...props }) => {
-                const vacationsOnDay = getVacationsForDate(date);
-                const hasVacations = vacationsOnDay.length > 0;
+        <CardContent className="p-3 sm:p-6 overflow-x-auto">
+          <div className="min-w-[320px]">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={setSelectedDate}
+              numberOfMonths={1}
+              className="rounded-md w-full pointer-events-auto"
+              classNames={{
+                months: "flex flex-col gap-4 sm:gap-8 w-full justify-center",
+                month: "space-y-4 flex-1",
+                caption: "flex justify-center pt-1 relative items-center mb-4 sm:mb-6",
+                caption_label: "text-lg sm:text-xl font-bold",
+                nav: "space-x-1 flex items-center",
+                nav_button: "h-9 w-9 sm:h-10 sm:w-10 bg-transparent p-0 opacity-50 hover:opacity-100 hover:bg-accent rounded-md transition-opacity",
+                nav_button_previous: "absolute left-0",
+                nav_button_next: "absolute right-0",
+                table: "w-full border-collapse",
+                head_row: "flex w-full mb-2",
+                head_cell: "text-muted-foreground rounded-md font-semibold text-xs sm:text-sm flex-1 text-center py-2",
+                row: "flex w-full mt-1",
+                cell: "relative p-0.5 text-center focus-within:relative focus-within:z-20 flex-1",
+                day: "h-10 sm:h-14 w-full p-0 font-normal hover:bg-accent rounded-md transition-all touch-manipulation",
+                day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
+                day_today: "bg-accent text-accent-foreground font-bold ring-2 ring-primary ring-offset-1 sm:ring-offset-2",
+                day_outside: "text-muted-foreground opacity-30",
+                day_disabled: "text-muted-foreground opacity-30",
+                day_hidden: "invisible",
+              }}
+              components={{
+                Day: ({ date, displayMonth, ...props }) => {
+                  const vacationsOnDay = getVacationsForDate(date);
+                  const hasVacations = vacationsOnDay.length > 0;
 
-                return (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <button
-                        {...props}
-                        className={cn(
-                          "h-14 w-full p-1.5 font-normal hover:bg-accent rounded-md transition-all relative group",
-                          hasVacations && `font-bold border-2 ${getVacationStatusColor(vacationsOnDay)}`
-                        )}
-                      >
-                        <time dateTime={format(date, "yyyy-MM-dd")} className="text-base absolute top-1.5 left-2">
-                          {format(date, "d")}
-                        </time>
-                        {hasVacations && (
-                          <>
-                            <div className={cn(
-                              "absolute bottom-1.5 right-1.5 text-white text-[11px] font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg z-10 border border-white/30",
-                              vacationsOnDay.some(v => v.status === 'approved') ? "bg-emerald-600 dark:bg-emerald-500" : "bg-amber-600 dark:bg-amber-500"
-                            )}>
-                              {vacationsOnDay.length}
-                            </div>
-                            {vacationsOnDay.length > 1 && (
-                              <div className="absolute bottom-1.5 left-1.5 flex gap-0.5">
-                                {vacationsOnDay.slice(0, 3).map((_, idx) => (
-                                  <div 
-                                    key={idx} 
-                                    className={cn(
-                                      "h-1.5 w-1.5 rounded-full shadow-sm",
-                                      vacationsOnDay[idx]?.status === 'approved' ? "bg-emerald-600 dark:bg-emerald-400" : "bg-amber-600 dark:bg-amber-400"
-                                    )}
-                                  />
-                                ))}
+                  return (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          {...props}
+                          className={cn(
+                            "h-10 sm:h-14 w-full p-1 font-normal hover:bg-accent rounded-md transition-all relative group touch-manipulation",
+                            hasVacations && `font-bold border-2 ${getVacationStatusColor(vacationsOnDay)}`
+                          )}
+                        >
+                          <time dateTime={format(date, "yyyy-MM-dd")} className="text-sm sm:text-base absolute top-0.5 sm:top-1.5 left-1 sm:left-2">
+                            {format(date, "d")}
+                          </time>
+                          {hasVacations && (
+                            <>
+                              <div className={cn(
+                                "absolute bottom-0.5 sm:bottom-1.5 right-0.5 sm:right-1.5 text-white text-[10px] sm:text-[11px] font-bold rounded-full h-5 w-5 sm:h-6 sm:w-6 flex items-center justify-center shadow-lg z-10 border border-white/30",
+                                vacationsOnDay.some(v => v.status === 'approved') ? "bg-emerald-600 dark:bg-emerald-500" : "bg-amber-600 dark:bg-amber-500"
+                              )}>
+                                {vacationsOnDay.length}
                               </div>
-                            )}
-                          </>
-                        )}
-                      </button>
-                    </PopoverTrigger>
-                    {hasVacations && (
-                      <PopoverContent className="w-96 p-4">
+                              {vacationsOnDay.length > 1 && (
+                                <div className="absolute bottom-0.5 sm:bottom-1.5 left-0.5 sm:left-1.5 hidden sm:flex gap-0.5">
+                                  {vacationsOnDay.slice(0, 3).map((_, idx) => (
+                                    <div 
+                                      key={idx} 
+                                      className={cn(
+                                        "h-1.5 w-1.5 rounded-full shadow-sm",
+                                        vacationsOnDay[idx]?.status === 'approved' ? "bg-emerald-600 dark:bg-emerald-400" : "bg-amber-600 dark:bg-amber-400"
+                                      )}
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </button>
+                      </PopoverTrigger>
+                      {hasVacations && (
+                        <PopoverContent className="w-[calc(100vw-2rem)] sm:w-96 p-3 sm:p-4 max-h-[60vh] overflow-y-auto" side="bottom" align="center">
                         <div className="space-y-3">
                           <h4 className="font-semibold text-lg border-b pb-2">
                             {format(date, "MMMM d, yyyy")}
