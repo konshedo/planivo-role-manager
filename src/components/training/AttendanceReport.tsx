@@ -45,23 +45,30 @@ const AttendanceReport = ({ eventId }: AttendanceReportProps) => {
   const { data: attendance, isLoading } = useQuery({
     queryKey: ['attendance-report', eventId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // First get attendance records
+      const { data: attendanceData, error: attError } = await supabase
         .from('training_attendance')
-        .select(`
-          id,
-          joined_at,
-          left_at,
-          duration_minutes,
-          attendance_status,
-          profiles (
-            full_name,
-            email
-          )
-        `)
+        .select('id, user_id, joined_at, left_at, duration_minutes, attendance_status')
         .eq('event_id', eventId)
         .order('joined_at', { ascending: true });
-      if (error) throw error;
-      return data as AttendanceRecord[];
+      
+      if (attError) throw attError;
+      if (!attendanceData?.length) return [];
+
+      // Then get profiles for those users
+      const userIds = attendanceData.map(a => a.user_id);
+      const { data: profiles, error: profError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', userIds);
+
+      if (profError) throw profError;
+
+      // Merge data
+      return attendanceData.map(a => ({
+        ...a,
+        profiles: profiles?.find(p => p.id === a.user_id) || { full_name: 'Unknown', email: 'N/A' },
+      })) as AttendanceRecord[];
     },
   });
 

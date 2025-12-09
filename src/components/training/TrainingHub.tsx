@@ -1,8 +1,10 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Plus, List, Users } from 'lucide-react';
+import { Calendar, Plus, List, Users, CalendarDays, UserCheck } from 'lucide-react';
 import TrainingEventList from './TrainingEventList';
 import TrainingEventForm from './TrainingEventForm';
 import TrainingRegistrations from './TrainingRegistrations';
+import TrainingCalendarView from './TrainingCalendarView';
+import AttendanceChecklist from './AttendanceChecklist';
 import { useUserRole } from '@/hooks/useUserRole';
 import { ErrorBoundary } from 'react-error-boundary';
 import { ErrorState } from '@/components/layout/ErrorState';
@@ -33,8 +35,12 @@ const TrainingHub = () => {
       }
     >
       <div className="space-y-6">
-        <Tabs defaultValue="events" className="space-y-4">
+        <Tabs defaultValue="calendar" className="space-y-4">
           <TabsList className="flex flex-wrap gap-1 h-auto">
+            <TabsTrigger value="calendar">
+              <CalendarDays className="h-4 w-4 mr-2" />
+              Calendar
+            </TabsTrigger>
             <TabsTrigger value="events">
               <Calendar className="h-4 w-4 mr-2" />
               Upcoming Events
@@ -53,9 +59,17 @@ const TrainingHub = () => {
                   <Users className="h-4 w-4 mr-2" />
                   Manage Events
                 </TabsTrigger>
+                <TabsTrigger value="attendance">
+                  <UserCheck className="h-4 w-4 mr-2" />
+                  Attendance
+                </TabsTrigger>
               </>
             )}
           </TabsList>
+
+          <TabsContent value="calendar">
+            <TrainingCalendarView />
+          </TabsContent>
 
           <TabsContent value="events">
             <TrainingEventList 
@@ -86,6 +100,19 @@ const TrainingHub = () => {
                 {selectedEventId && (
                   <div className="mt-6">
                     <TrainingRegistrations eventId={selectedEventId} />
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="attendance">
+                <TrainingEventList 
+                  showAll={true}
+                  isAdminView={true}
+                  onSelectEvent={setSelectedEventId}
+                />
+                {selectedEventId && (
+                  <div className="mt-6">
+                    <AttendanceChecklist eventId={selectedEventId} />
                   </div>
                 )}
               </TabsContent>
