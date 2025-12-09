@@ -1170,6 +1170,70 @@ export type Database = {
           },
         ]
       }
+      user_module_access: {
+        Row: {
+          can_admin: boolean | null
+          can_delete: boolean | null
+          can_edit: boolean | null
+          can_view: boolean | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_override: boolean | null
+          module_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          can_admin?: boolean | null
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          can_view?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_override?: boolean | null
+          module_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          can_admin?: boolean | null
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          can_view?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_override?: boolean | null
+          module_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_module_access_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_module_access_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "module_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_module_access_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
