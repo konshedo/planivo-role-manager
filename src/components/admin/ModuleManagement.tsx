@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Table, 
   TableBody, 
@@ -43,10 +44,13 @@ import {
   Shield,
   Loader2,
   AlertCircle,
-  AlertTriangle
+  AlertTriangle,
+  Users,
+  UserCog
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import UserModuleAccess from './UserModuleAccess';
 
 interface Module {
   id: string;
@@ -213,7 +217,20 @@ const ModuleManagement = () => {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Tabs defaultValue="modules" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsTrigger value="modules" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Role-Based Access
+          </TabsTrigger>
+          <TabsTrigger value="users" className="flex items-center gap-2">
+            <UserCog className="h-4 w-4" />
+            User-Specific Access
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="modules">
+          <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5" />
@@ -394,6 +411,13 @@ const ModuleManagement = () => {
           )}
         </DialogContent>
       </Dialog>
+
+        </TabsContent>
+
+        <TabsContent value="users">
+          <UserModuleAccess />
+        </TabsContent>
+      </Tabs>
 
       {/* Dependency Warning Dialog */}
       <AlertDialog open={!!dependencyWarning} onOpenChange={() => setDependencyWarning(null)}>

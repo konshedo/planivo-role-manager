@@ -87,6 +87,23 @@ const UserEditDialog = ({ open, onOpenChange, user, onUserUpdate, mode = 'full' 
     enabled: !!user && user.roles?.length > 0,
   });
 
+  // Fetch user-specific module overrides
+  const { data: userSpecificAccess, refetch: refetchUserAccess } = useQuery({
+    queryKey: ['user-specific-module-access', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('user_module_access')
+        .select('*, module_definitions!user_module_access_module_id_fkey(id, name, key)')
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
   const { data: workspaces } = useQuery({
     queryKey: ['workspaces'],
     queryFn: async () => {
@@ -742,53 +759,83 @@ const UserEditDialog = ({ open, onOpenChange, user, onUserUpdate, mode = 'full' 
 
             <Separator />
 
-            {/* Module Permissions Section (Read-only) - Only show in full mode */}
+            {/* Module Permissions Section - Only show in full mode */}
             {mode === 'full' && (
               <div className="space-y-4">
-              <div>
-                <h3 className="font-semibold mb-2">Module Access Permissions</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  These permissions are derived from the user's assigned roles
-                </p>
-              </div>
-
-              {moduleAccessByModule && Object.keys(moduleAccessByModule).length > 0 ? (
-                <div className="space-y-3">
-                  {Object.values(moduleAccessByModule).map((access: any) => (
-                    <div key={access.module.id} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <h4 className="font-medium">{access.module.name}</h4>
-                          {access.module.description && (
-                            <p className="text-sm text-muted-foreground">{access.module.description}</p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox checked={access.can_view} disabled />
-                          <Label className="text-sm font-normal">View</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox checked={access.can_edit} disabled />
-                          <Label className="text-sm font-normal">Edit</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox checked={access.can_delete} disabled />
-                          <Label className="text-sm font-normal">Delete</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox checked={access.can_admin} disabled />
-                          <Label className="text-sm font-normal">Admin</Label>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div>
+                  <h3 className="font-semibold mb-2">Module Access Permissions</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Permissions are derived from roles. User-specific overrides take priority.
+                  </p>
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No module permissions assigned (no roles assigned)</p>
-              )}
-            </div>
+
+                {/* User-specific overrides indicator */}
+                {userSpecificAccess && userSpecificAccess.length > 0 && (
+                  <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-4">
+                    <p className="text-sm font-medium text-primary flex items-center gap-2">
+                      <Badge variant="outline" className="bg-primary/20">Override</Badge>
+                      This user has {userSpecificAccess.length} custom module permission(s)
+                    </p>
+                    <ul className="mt-2 text-sm text-muted-foreground space-y-1">
+                      {userSpecificAccess.map((access: any) => (
+                        <li key={access.id} className="flex items-center gap-2">
+                          • {access.module_definitions?.name}: 
+                          {access.can_view && <Badge variant="secondary" className="text-xs">View</Badge>}
+                          {access.can_edit && <Badge variant="secondary" className="text-xs">Edit</Badge>}
+                          {access.can_delete && <Badge variant="secondary" className="text-xs">Delete</Badge>}
+                          {access.can_admin && <Badge variant="secondary" className="text-xs">Admin</Badge>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {moduleAccessByModule && Object.keys(moduleAccessByModule).length > 0 ? (
+                  <div className="space-y-3">
+                    {Object.values(moduleAccessByModule).map((access: any) => {
+                      const hasOverride = userSpecificAccess?.some(
+                        (ua: any) => ua.module_id === access.module.id
+                      );
+                      
+                      return (
+                        <div key={access.module.id} className={`border rounded-lg p-4 ${hasOverride ? 'border-primary/50 bg-primary/5' : ''}`}>
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-medium">{access.module.name}</h4>
+                                {hasOverride && <Badge variant="outline" className="text-xs">Has Override</Badge>}
+                              </div>
+                              {access.module.description && (
+                                <p className="text-sm text-muted-foreground">{access.module.description}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div className="flex items-center space-x-2">
+                              <Checkbox checked={access.can_view} disabled />
+                              <Label className="text-sm font-normal">View</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Checkbox checked={access.can_edit} disabled />
+                              <Label className="text-sm font-normal">Edit</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Checkbox checked={access.can_delete} disabled />
+                              <Label className="text-sm font-normal">Delete</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Checkbox checked={access.can_admin} disabled />
+                              <Label className="text-sm font-normal">Admin</Label>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No module permissions assigned (no roles assigned)</p>
+                )}
+              </div>
             )}
           </div>
         )}
