@@ -1,4 +1,4 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, CheckSquare, AlertTriangle, List, Settings, CalendarDays } from 'lucide-react';
 import VacationPlanner from './VacationPlanner';
 import VacationPlansList from './VacationPlansList';
@@ -7,6 +7,7 @@ import VacationConflictDashboard from './VacationConflictDashboard';
 import VacationTypeManagement from './VacationTypeManagement';
 import VacationCalendarView from './VacationCalendarView';
 import VacationRulesManagement from './VacationRulesManagement';
+import { ResponsiveTabsList } from '@/components/layout/ResponsiveTabsList';
 import { useUserRole } from '@/hooks/useUserRole';
 import { ErrorBoundary } from 'react-error-boundary';
 import { ErrorState } from '@/components/layout/ErrorState';
@@ -72,50 +73,56 @@ const VacationHub = ({ departmentId }: VacationHubProps) => {
     >
       <div className="space-y-6">
       <Tabs defaultValue="calendar" className="space-y-4">
-        <TabsList className="flex flex-wrap gap-1 h-auto">
-          <TabsTrigger value="calendar">
-            <CalendarDays className="h-4 w-4 mr-2" />
-            Calendar
+        <ResponsiveTabsList>
+          <TabsTrigger value="calendar" className="min-h-[44px] px-3 text-sm">
+            <CalendarDays className="h-4 w-4 mr-1.5 sm:mr-2" />
+            <span className="hidden xs:inline">Calendar</span>
+            <span className="xs:hidden">Cal</span>
           </TabsTrigger>
-          <TabsTrigger value="planner">
-            <Calendar className="h-4 w-4 mr-2" />
-            Plan Vacation
+          <TabsTrigger value="planner" className="min-h-[44px] px-3 text-sm">
+            <Calendar className="h-4 w-4 mr-1.5 sm:mr-2" />
+            <span className="hidden xs:inline">Plan Vacation</span>
+            <span className="xs:hidden">Plan</span>
           </TabsTrigger>
-          <TabsTrigger value="plans">
-            <List className="h-4 w-4 mr-2" />
-            My Plans
+          <TabsTrigger value="plans" className="min-h-[44px] px-3 text-sm">
+            <List className="h-4 w-4 mr-1.5 sm:mr-2" />
+            <span className="hidden xs:inline">My Plans</span>
+            <span className="xs:hidden">Mine</span>
           </TabsTrigger>
           {isDepartmentHead && (
-            <TabsTrigger value="department-plans">
-              <List className="h-4 w-4 mr-2" />
-              Department Plans
+            <TabsTrigger value="department-plans" className="min-h-[44px] px-3 text-sm">
+              <List className="h-4 w-4 mr-1.5 sm:mr-2" />
+              <span className="hidden xs:inline">Department</span>
+              <span className="xs:hidden">Dept</span>
             </TabsTrigger>
           )}
           {isApprover && (
-            <TabsTrigger value="approvals">
-              <CheckSquare className="h-4 w-4 mr-2" />
-              Approvals
+            <TabsTrigger value="approvals" className="min-h-[44px] px-3 text-sm">
+              <CheckSquare className="h-4 w-4 mr-1.5 sm:mr-2" />
+              <span className="hidden sm:inline">Approvals</span>
+              <span className="sm:hidden">OK</span>
             </TabsTrigger>
           )}
           {isApprover && (
-            <TabsTrigger value="conflicts">
-              <AlertTriangle className="h-4 w-4 mr-2" />
-              Conflicts
+            <TabsTrigger value="conflicts" className="min-h-[44px] px-3 text-sm">
+              <AlertTriangle className="h-4 w-4 mr-1.5 sm:mr-2" />
+              <span className="hidden sm:inline">Conflicts</span>
+              <span className="sm:hidden">!</span>
             </TabsTrigger>
           )}
           {isSuperAdmin && (
             <>
-              <TabsTrigger value="types">
-                <Settings className="h-4 w-4 mr-2" />
-                Vacation Types
+              <TabsTrigger value="types" className="min-h-[44px] px-3 text-sm">
+                <Settings className="h-4 w-4 mr-1.5 sm:mr-2" />
+                <span className="hidden sm:inline">Types</span>
               </TabsTrigger>
-              <TabsTrigger value="rules">
-                <Settings className="h-4 w-4 mr-2" />
-                Rules
+              <TabsTrigger value="rules" className="min-h-[44px] px-3 text-sm">
+                <Settings className="h-4 w-4 mr-1.5 sm:mr-2" />
+                <span className="hidden sm:inline">Rules</span>
               </TabsTrigger>
             </>
           )}
-        </TabsList>
+        </ResponsiveTabsList>
 
         <TabsContent value="calendar">
           <VacationCalendarView departmentId={departmentId} />

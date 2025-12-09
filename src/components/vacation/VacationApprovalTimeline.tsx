@@ -136,59 +136,61 @@ const VacationApprovalTimeline = ({
         </div>
       )}
 
-      {/* Visual Progress Line */}
-      <div className="mb-8 px-8">
-        {/* Circles and connecting lines */}
-        <div className="flex items-center justify-center mb-4">
-          {stages.map((stage, index) => (
-            <div key={stage.level} className="flex items-center">
-              {/* Circle */}
-              <div
-                className={cn(
-                  'w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all',
-                  stage.status === 'approved' &&
-                    'bg-success border-success text-success-foreground',
-                  stage.status === 'rejected' &&
-                    'bg-destructive border-destructive text-destructive-foreground',
-                  stage.status === 'pending' &&
-                    'bg-warning border-warning text-warning-foreground animate-pulse',
-                  stage.status === 'waiting' &&
-                    'bg-muted border-border text-muted-foreground'
-                )}
-              >
-                {stage.status === 'approved' && <CheckCircle2 className="h-6 w-6" />}
-                {stage.status === 'rejected' && <XCircle className="h-6 w-6" />}
-                {stage.status === 'pending' && <Clock className="h-6 w-6" />}
-                {stage.status === 'waiting' && <Hourglass className="h-6 w-6" />}
-              </div>
-              
-              {/* Connecting Line */}
-              {index < stages.length - 1 && (
+      {/* Visual Progress Line - Responsive */}
+      <div className="mb-6 sm:mb-8 overflow-x-auto">
+        <div className="min-w-[320px] px-2 sm:px-8">
+          {/* Circles and connecting lines */}
+          <div className="flex items-center justify-between sm:justify-center mb-3 sm:mb-4">
+            {stages.map((stage, index) => (
+              <div key={stage.level} className="flex items-center">
+                {/* Circle */}
                 <div
                   className={cn(
-                    'h-0.5 w-32 mx-4 transition-all',
-                    stage.status === 'approved' ? 'bg-success' : 'bg-border'
+                    'w-10 h-10 sm:w-14 sm:h-14 rounded-full flex items-center justify-center border-2 transition-all shrink-0',
+                    stage.status === 'approved' &&
+                      'bg-success border-success text-success-foreground',
+                    stage.status === 'rejected' &&
+                      'bg-destructive border-destructive text-destructive-foreground',
+                    stage.status === 'pending' &&
+                      'bg-warning border-warning text-warning-foreground animate-pulse',
+                    stage.status === 'waiting' &&
+                      'bg-muted border-border text-muted-foreground'
                   )}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-        
-        {/* Labels below circles */}
-        <div className="flex items-start justify-center gap-40">
-          {stages.map((stage) => (
-            <div key={`label-${stage.level}`} className="text-center w-32">
-              <span className="text-sm font-medium block mb-1">
-                Level {stage.level}
-              </span>
-              {stage.approverName && (
-                <span className="text-sm text-muted-foreground block truncate">
-                  {stage.approverName}
+                >
+                  {stage.status === 'approved' && <CheckCircle2 className="h-4 w-4 sm:h-6 sm:w-6" />}
+                  {stage.status === 'rejected' && <XCircle className="h-4 w-4 sm:h-6 sm:w-6" />}
+                  {stage.status === 'pending' && <Clock className="h-4 w-4 sm:h-6 sm:w-6" />}
+                  {stage.status === 'waiting' && <Hourglass className="h-4 w-4 sm:h-6 sm:w-6" />}
+                </div>
+                
+                {/* Connecting Line */}
+                {index < stages.length - 1 && (
+                  <div
+                    className={cn(
+                      'h-0.5 w-8 sm:w-24 md:w-32 mx-1 sm:mx-4 transition-all',
+                      stage.status === 'approved' ? 'bg-success' : 'bg-border'
+                    )}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+          
+          {/* Labels below circles */}
+          <div className="flex items-start justify-between sm:justify-center sm:gap-24 md:gap-40">
+            {stages.map((stage) => (
+              <div key={`label-${stage.level}`} className="text-center w-20 sm:w-32">
+                <span className="text-xs sm:text-sm font-medium block mb-1">
+                  L{stage.level}
                 </span>
-              )}
-            </div>
-          ))}
+                {stage.approverName && (
+                  <span className="text-xs sm:text-sm text-muted-foreground block truncate">
+                    {stage.approverName}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

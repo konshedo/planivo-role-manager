@@ -1,4 +1,4 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, Plus, List, Users, CalendarDays, UserCheck, UsersRound } from 'lucide-react';
 import TrainingEventList from './TrainingEventList';
 import TrainingEventForm from './TrainingEventForm';
@@ -11,6 +11,7 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { ErrorBoundary } from 'react-error-boundary';
 import { ErrorState } from '@/components/layout/ErrorState';
 import { LoadingState } from '@/components/layout/LoadingState';
+import { ResponsiveTabsList } from '@/components/layout/ResponsiveTabsList';
 import { useState } from 'react';
 
 const TrainingHub = () => {
@@ -39,40 +40,43 @@ const TrainingHub = () => {
     >
       <div className="space-y-6">
         <Tabs defaultValue="calendar" className="space-y-4">
-          <TabsList className="flex flex-wrap gap-1 h-auto">
-            <TabsTrigger value="calendar">
-              <CalendarDays className="h-4 w-4 mr-2" />
-              Calendar
+          <ResponsiveTabsList>
+            <TabsTrigger value="calendar" className="min-h-[44px] px-3 text-sm">
+              <CalendarDays className="h-4 w-4 mr-1.5 sm:mr-2" />
+              <span className="hidden xs:inline">Calendar</span>
+              <span className="xs:hidden">Cal</span>
             </TabsTrigger>
-            <TabsTrigger value="events">
-              <Calendar className="h-4 w-4 mr-2" />
-              Upcoming Events
+            <TabsTrigger value="events" className="min-h-[44px] px-3 text-sm">
+              <Calendar className="h-4 w-4 mr-1.5 sm:mr-2" />
+              <span className="hidden sm:inline">Upcoming</span>
+              <span className="sm:hidden">Events</span>
             </TabsTrigger>
-            <TabsTrigger value="my-registrations">
-              <List className="h-4 w-4 mr-2" />
-              My Registrations
+            <TabsTrigger value="my-registrations" className="min-h-[44px] px-3 text-sm">
+              <List className="h-4 w-4 mr-1.5 sm:mr-2" />
+              <span className="hidden xs:inline">My Registrations</span>
+              <span className="xs:hidden">Mine</span>
             </TabsTrigger>
             {isAdmin && (
               <>
-                <TabsTrigger value="create">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Event
+                <TabsTrigger value="create" className="min-h-[44px] px-3 text-sm">
+                  <Plus className="h-4 w-4 mr-1.5 sm:mr-2" />
+                  <span className="hidden sm:inline">Create</span>
                 </TabsTrigger>
-                <TabsTrigger value="manage">
-                  <Users className="h-4 w-4 mr-2" />
-                  Manage Events
+                <TabsTrigger value="manage" className="min-h-[44px] px-3 text-sm">
+                  <Users className="h-4 w-4 mr-1.5 sm:mr-2" />
+                  <span className="hidden sm:inline">Manage</span>
                 </TabsTrigger>
-                <TabsTrigger value="attendance" onClick={() => setAttendanceEventId(null)}>
-                  <UserCheck className="h-4 w-4 mr-2" />
-                  Attendance
+                <TabsTrigger value="attendance" onClick={() => setAttendanceEventId(null)} className="min-h-[44px] px-3 text-sm">
+                  <UserCheck className="h-4 w-4 mr-1.5 sm:mr-2" />
+                  <span className="hidden sm:inline">Attendance</span>
                 </TabsTrigger>
-                <TabsTrigger value="groups">
-                  <UsersRound className="h-4 w-4 mr-2" />
-                  Groups
+                <TabsTrigger value="groups" className="min-h-[44px] px-3 text-sm">
+                  <UsersRound className="h-4 w-4 mr-1.5 sm:mr-2" />
+                  <span className="hidden sm:inline">Groups</span>
                 </TabsTrigger>
               </>
             )}
-          </TabsList>
+          </ResponsiveTabsList>
 
           <TabsContent value="calendar">
             <TrainingCalendarView />

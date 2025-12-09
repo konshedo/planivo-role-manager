@@ -179,46 +179,46 @@ const DepartmentHeadDashboard = () => {
       
       <div className="space-y-4">
         {!['staff','vacation','tasks','messaging','notifications','scheduling'].includes(activeTab || '') && (
-          <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
-            <div className="rounded-lg border bg-card p-6">
+          <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+            <div className="rounded-lg border bg-card p-4 sm:p-6">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-muted-foreground">Total Staff</p>
-                <UserPlus className="h-4 w-4 text-muted-foreground" />
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Staff</p>
+                <UserPlus className="h-4 w-4 text-muted-foreground shrink-0" />
               </div>
-              <p className="text-3xl font-bold mt-2">{departmentStats?.staffCount || 0}</p>
-              <p className="text-xs text-muted-foreground mt-2">In your department</p>
+              <p className="text-2xl sm:text-3xl font-bold mt-2">{departmentStats?.staffCount || 0}</p>
+              <p className="text-xs text-muted-foreground mt-1 sm:mt-2 hidden sm:block">In your department</p>
             </div>
-            <div className="rounded-lg border bg-card p-6">
+            <div className="rounded-lg border bg-card p-4 sm:p-6">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-muted-foreground">Pending Approvals</p>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Pending</p>
+                <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
               </div>
-              <p className="text-3xl font-bold mt-2">{departmentStats?.pendingVacations || 0}</p>
-              <p className="text-xs text-muted-foreground mt-2">Vacation requests</p>
+              <p className="text-2xl sm:text-3xl font-bold mt-2">{departmentStats?.pendingVacations || 0}</p>
+              <p className="text-xs text-muted-foreground mt-1 sm:mt-2 hidden sm:block">Vacation requests</p>
             </div>
-            <div className="rounded-lg border bg-card p-6">
+            <div className="rounded-lg border bg-card p-4 sm:p-6">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-muted-foreground">Active Tasks</p>
-                <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Tasks</p>
+                <ClipboardList className="h-4 w-4 text-muted-foreground shrink-0" />
               </div>
-              <p className="text-3xl font-bold mt-2">{departmentStats?.activeTasks || 0}</p>
-              <p className="text-xs text-muted-foreground mt-2">Department tasks</p>
+              <p className="text-2xl sm:text-3xl font-bold mt-2">{departmentStats?.activeTasks || 0}</p>
+              <p className="text-xs text-muted-foreground mt-1 sm:mt-2 hidden sm:block">Active tasks</p>
             </div>
-            <div className="rounded-lg border bg-card p-6">
+            <div className="rounded-lg border bg-card p-4 sm:p-6">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-muted-foreground">On Vacation Today</p>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">On Vacation</p>
+                <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
               </div>
-              <p className="text-3xl font-bold mt-2">{departmentStats?.staffOnVacation || 0}</p>
-              <p className="text-xs text-muted-foreground mt-2">Staff currently off</p>
+              <p className="text-2xl sm:text-3xl font-bold mt-2">{departmentStats?.staffOnVacation || 0}</p>
+              <p className="text-xs text-muted-foreground mt-1 sm:mt-2 hidden sm:block">Today</p>
             </div>
-            <div className="rounded-lg border bg-card p-6">
+            <div className="rounded-lg border bg-card p-4 sm:p-6 col-span-2 md:col-span-1">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-muted-foreground">Upcoming Training</p>
-                <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Training</p>
+                <GraduationCap className="h-4 w-4 text-muted-foreground shrink-0" />
               </div>
-              <p className="text-3xl font-bold mt-2">{departmentStats?.upcomingTraining || 0}</p>
-              <p className="text-xs text-muted-foreground mt-2">Scheduled events</p>
+              <p className="text-2xl sm:text-3xl font-bold mt-2">{departmentStats?.upcomingTraining || 0}</p>
+              <p className="text-xs text-muted-foreground mt-1 sm:mt-2 hidden sm:block">Upcoming</p>
             </div>
           </div>
         )}

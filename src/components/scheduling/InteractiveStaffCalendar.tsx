@@ -270,21 +270,21 @@ export const InteractiveStaffCalendar: React.FC<InteractiveStaffCalendarProps> =
     <div className="space-y-4">
       {/* Selection Controls */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Interactive Staff Assignment</CardTitle>
-          <CardDescription>Select schedule, shift, and staff member, then click calendar days to assign</CardDescription>
+        <CardHeader className="pb-3 px-4 sm:px-6">
+          <CardTitle className="text-lg sm:text-xl">Interactive Staff Assignment</CardTitle>
+          <CardDescription className="text-sm">Select schedule, shift, and staff, then tap calendar days</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
+        <CardContent className="px-4 sm:px-6">
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-2">
-              <Label>Schedule</Label>
+              <Label className="text-sm">Schedule</Label>
               <Select value={selectedScheduleId} onValueChange={(v) => {
                 setSelectedScheduleId(v);
                 setSelectedShiftId('');
                 setSelectedStaffId('');
                 setSelectedDates(new Set());
               }}>
-                <SelectTrigger>
+                <SelectTrigger className="min-h-[44px]">
                   <SelectValue placeholder="Select schedule" />
                 </SelectTrigger>
                 <SelectContent>
@@ -298,7 +298,7 @@ export const InteractiveStaffCalendar: React.FC<InteractiveStaffCalendarProps> =
             </div>
 
             <div className="space-y-2">
-              <Label>Shift</Label>
+              <Label className="text-sm">Shift</Label>
               <Select 
                 value={selectedShiftId} 
                 onValueChange={(v) => {
@@ -307,15 +307,15 @@ export const InteractiveStaffCalendar: React.FC<InteractiveStaffCalendarProps> =
                 }}
                 disabled={!selectedScheduleId}
               >
-                <SelectTrigger>
+                <SelectTrigger className="min-h-[44px]">
                   <SelectValue placeholder="Select shift" />
                 </SelectTrigger>
                 <SelectContent>
                   {selectedSchedule?.shifts?.map((shift: any) => (
                     <SelectItem key={shift.id} value={shift.id}>
                       <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded" style={{ backgroundColor: shift.color }} />
-                        {shift.name} ({shift.start_time?.slice(0, 5)} - {shift.end_time?.slice(0, 5)})
+                        <div className="w-3 h-3 rounded shrink-0" style={{ backgroundColor: shift.color }} />
+                        <span className="truncate">{shift.name} ({shift.start_time?.slice(0, 5)} - {shift.end_time?.slice(0, 5)})</span>
                       </div>
                     </SelectItem>
                   ))}
@@ -323,8 +323,8 @@ export const InteractiveStaffCalendar: React.FC<InteractiveStaffCalendarProps> =
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Staff Member</Label>
+            <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+              <Label className="text-sm">Staff Member</Label>
               <Select 
                 value={selectedStaffId} 
                 onValueChange={(v) => {
@@ -333,7 +333,7 @@ export const InteractiveStaffCalendar: React.FC<InteractiveStaffCalendarProps> =
                 }}
                 disabled={!selectedShiftId}
               >
-                <SelectTrigger>
+                <SelectTrigger className="min-h-[44px]">
                   <SelectValue placeholder="Select staff" />
                 </SelectTrigger>
                 <SelectContent>
@@ -342,7 +342,7 @@ export const InteractiveStaffCalendar: React.FC<InteractiveStaffCalendarProps> =
                     if (!profile?.id) return null;
                     return (
                       <SelectItem key={profile.id} value={profile.id}>
-                        {profile.full_name || 'Unknown'} ({profile.email})
+                        <span className="truncate">{profile.full_name || 'Unknown'}</span>
                       </SelectItem>
                     );
                   })}
@@ -358,39 +358,41 @@ export const InteractiveStaffCalendar: React.FC<InteractiveStaffCalendarProps> =
         <div className="grid gap-4 lg:grid-cols-4">
           {/* Calendar */}
           <Card className="lg:col-span-3">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+            <CardHeader className="pb-2 px-3 sm:px-6">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="min-h-[44px] min-w-[44px]">
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <h3 className="font-semibold text-lg">{format(currentMonth, 'MMMM yyyy')}</h3>
-                  <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+                  <h3 className="font-semibold text-base sm:text-lg min-w-[140px] text-center">{format(currentMonth, 'MMMM yyyy')}</h3>
+                  <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="min-h-[44px] min-w-[44px]">
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
                 {selectedDates.size > 0 && (
-                  <Button onClick={saveAssignments} disabled={isSaving}>
+                  <Button onClick={saveAssignments} disabled={isSaving} className="min-h-[44px] w-full sm:w-auto">
                     <Save className="h-4 w-4 mr-2" />
-                    {isSaving ? 'Saving...' : `Save ${selectedDates.size} days`}
+                    {isSaving ? 'Saving...' : `Save ${selectedDates.size}`}
                   </Button>
                 )}
               </div>
             </CardHeader>
-            <CardContent>
-              {/* Day headers */}
-              <div className="grid grid-cols-7 gap-1 mb-1">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                  <div key={day} className="text-center text-xs sm:text-sm font-medium text-muted-foreground py-2 min-w-[40px]">
-                    {day}
-                  </div>
-                ))}
-              </div>
+            <CardContent className="px-2 sm:px-6 overflow-x-auto">
+              <div className="min-w-[320px]">
+                {/* Day headers */}
+                <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-1">
+                  {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
+                    <div key={i} className="text-center text-xs font-medium text-muted-foreground py-2">
+                      <span className="sm:hidden">{day}</span>
+                      <span className="hidden sm:inline">{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][i]}</span>
+                    </div>
+                  ))}
+                </div>
 
-              {/* Calendar grid */}
-              <div className="grid grid-cols-7 gap-1" style={{ minWidth: '280px' }}>
-                {calendarDays.map((day) => {
-                  const dateStr = format(day, 'yyyy-MM-dd');
+                {/* Calendar grid */}
+                <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
+                  {calendarDays.map((day) => {
+                    const dateStr = format(day, 'yyyy-MM-dd');
                   const inScheduleRange = isDateInScheduleRange(day);
                   const hasVacation = hasVacationOnDate(day);
                   const isAssigned = isDateAssigned(day);
@@ -398,48 +400,49 @@ export const InteractiveStaffCalendar: React.FC<InteractiveStaffCalendarProps> =
                   const isSelected = selectedDates.has(dateStr);
                   const inCurrentMonth = isSameMonth(day, currentMonth);
 
-                  return (
-                    <div
-                      key={dateStr}
-                      onClick={() => !isAssigned && toggleDateSelection(day)}
-                      className={cn(
-                        "relative h-14 sm:h-16 p-1 border rounded-md flex flex-col items-center justify-center transition-all",
-                        !inCurrentMonth && "opacity-30",
-                        !inScheduleRange && "bg-muted/30 cursor-not-allowed",
-                        inScheduleRange && !hasVacation && !isAssigned && "cursor-pointer hover:bg-accent",
-                        hasVacation && "bg-destructive/20 cursor-not-allowed",
-                        isAssigned && "bg-primary/20",
-                        isSelected && "bg-primary text-primary-foreground ring-2 ring-primary",
-                      )}
-                    >
-                      <span className={cn(
-                        "text-sm font-medium",
-                        isSelected && "text-primary-foreground"
-                      )}>
-                        {format(day, 'd')}
-                      </span>
+                    return (
+                      <div
+                        key={dateStr}
+                        onClick={() => !isAssigned && toggleDateSelection(day)}
+                        className={cn(
+                          "relative h-11 sm:h-14 md:h-16 p-0.5 sm:p-1 border rounded-md flex flex-col items-center justify-center transition-all touch-manipulation",
+                          !inCurrentMonth && "opacity-30",
+                          !inScheduleRange && "bg-muted/30 cursor-not-allowed",
+                          inScheduleRange && !hasVacation && !isAssigned && "cursor-pointer hover:bg-accent active:bg-accent",
+                          hasVacation && "bg-destructive/20 cursor-not-allowed",
+                          isAssigned && "bg-primary/20",
+                          isSelected && "bg-primary text-primary-foreground ring-2 ring-primary",
+                        )}
+                      >
+                        <span className={cn(
+                          "text-xs sm:text-sm font-medium",
+                          isSelected && "text-primary-foreground"
+                        )}>
+                          {format(day, 'd')}
+                        </span>
 
-                      {hasVacation && (
-                        <AlertTriangle className="h-3 w-3 text-destructive absolute top-1 right-1" />
-                      )}
-                      
-                      {isAssigned && !isSelected && (
-                        <div className="flex items-center gap-1">
-                          <Check className="h-3 w-3 text-primary" />
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (assignment) removeAssignment(assignment.id);
-                            }}
-                            className="opacity-0 hover:opacity-100 transition-opacity"
-                          >
-                            <X className="h-3 w-3 text-destructive" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        {hasVacation && (
+                          <AlertTriangle className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-destructive absolute top-0.5 right-0.5" />
+                        )}
+                        
+                        {isAssigned && !isSelected && (
+                          <div className="flex items-center gap-0.5">
+                            <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary" />
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (assignment) removeAssignment(assignment.id);
+                              }}
+                              className="opacity-50 sm:opacity-0 hover:opacity-100 transition-opacity p-1"
+                            >
+                              <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-destructive" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Legend */}

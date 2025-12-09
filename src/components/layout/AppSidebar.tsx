@@ -193,7 +193,7 @@ export function AppSidebar({ hasAccess, signOut }: AppSidebarProps) {
       </SidebarContent>
 
       {/* Footer with User Actions */}
-      <SidebarFooter className="border-t border-sidebar-border bg-sidebar p-4">
+      <SidebarFooter className="border-t border-sidebar-border bg-sidebar p-3 md:p-4">
         {!collapsed ? (
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2 justify-between">
@@ -201,7 +201,7 @@ export function AppSidebar({ hasAccess, signOut }: AppSidebarProps) {
               {hasAccess('messaging') && <MessagingPanel />}
               <UserProfile />
             </div>
-            <Button onClick={signOut} variant="outline" size="sm" className="w-full">
+            <Button onClick={signOut} variant="outline" size="sm" className="w-full min-h-[44px]">
               <LogOut className="mr-2 h-4 w-4" />
               Sign Out
             </Button>
@@ -211,7 +211,7 @@ export function AppSidebar({ hasAccess, signOut }: AppSidebarProps) {
             {hasAccess('notifications') && <NotificationBell />}
             {hasAccess('messaging') && <MessagingPanel />}
             <UserProfile />
-            <Button onClick={signOut} variant="ghost" size="icon" className="w-full">
+            <Button onClick={signOut} variant="ghost" size="icon" className="w-full min-h-[44px] min-w-[44px]">
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
