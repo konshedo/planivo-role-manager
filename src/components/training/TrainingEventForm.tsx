@@ -9,13 +9,14 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Loader2, Calendar, MapPin, Link as LinkIcon, Users, Video, UserCheck, Target } from 'lucide-react';
-import EventTargetSelector from './EventTargetSelector';
+import { Loader2, Calendar, MapPin, Link as LinkIcon, Users, Video, UserCheck, Target, X, AlertCircle } from 'lucide-react';
+import UserSelectionDialog from './UserSelectionDialog';
 
 const eventSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters').max(200),
@@ -51,8 +52,8 @@ const TrainingEventForm = ({ eventId, onSuccess }: TrainingEventFormProps) => {
   const { data: roles } = useUserRole();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [showUserSelector, setShowUserSelector] = useState(false);
 
   const isSuperAdmin = roles?.some(r => r.role === 'super_admin');
 
@@ -110,18 +111,31 @@ const TrainingEventForm = ({ eventId, onSuccess }: TrainingEventFormProps) => {
   const { data: existingTargets } = useQuery({
     queryKey: ['training-event-targets', eventId],
     queryFn: async () => {
-      if (!eventId) return { departments: [], users: [] };
+      if (!eventId) return [];
       const { data, error } = await supabase
         .from('training_event_targets')
         .select('*')
         .eq('event_id', eventId);
       if (error) throw error;
       
-      const departments = data?.filter(t => t.target_type === 'department').map(t => t.department_id!) || [];
-      const users = data?.filter(t => t.target_type === 'user').map(t => t.user_id!) || [];
-      return { departments, users };
+      return data?.filter(t => t.target_type === 'user').map(t => t.user_id!) || [];
     },
     enabled: !!eventId,
+  });
+
+  // Fetch selected user profiles for display
+  const { data: selectedUserProfiles } = useQuery({
+    queryKey: ['selected-user-profiles', selectedUsers],
+    queryFn: async () => {
+      if (!selectedUsers.length) return [];
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', selectedUsers);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: selectedUsers.length > 0,
   });
 
   // Fetch potential coordinators (admins in org)
@@ -189,9 +203,8 @@ const TrainingEventForm = ({ eventId, onSuccess }: TrainingEventFormProps) => {
 
   // Load existing targets when editing
   useEffect(() => {
-    if (existingTargets) {
-      setSelectedDepartments(existingTargets.departments);
-      setSelectedUsers(existingTargets.users);
+    if (existingTargets && Array.isArray(existingTargets)) {
+      setSelectedUsers(existingTargets);
     }
   }, [existingTargets]);
 
@@ -250,7 +263,7 @@ const TrainingEventForm = ({ eventId, onSuccess }: TrainingEventFormProps) => {
       }
 
       // Handle targets for mandatory/invite_only events
-      if (data.registration_type !== 'open' && createdEventId) {
+      if (data.registration_type !== 'open' && createdEventId && selectedUsers.length > 0) {
         // Delete existing targets first (for updates)
         if (eventId) {
           await supabase
@@ -259,27 +272,14 @@ const TrainingEventForm = ({ eventId, onSuccess }: TrainingEventFormProps) => {
             .eq('event_id', eventId);
         }
 
-        // Insert department targets
-        if (selectedDepartments.length > 0) {
-          const deptTargets = selectedDepartments.map(deptId => ({
-            event_id: createdEventId!,
-            target_type: 'department' as const,
-            department_id: deptId,
-            is_mandatory: data.registration_type === 'mandatory',
-          }));
-          await supabase.from('training_event_targets').insert(deptTargets);
-        }
-
         // Insert user targets
-        if (selectedUsers.length > 0) {
-          const userTargets = selectedUsers.map(userId => ({
-            event_id: createdEventId!,
-            target_type: 'user' as const,
-            user_id: userId,
-            is_mandatory: data.registration_type === 'mandatory',
-          }));
-          await supabase.from('training_event_targets').insert(userTargets);
-        }
+        const userTargets = selectedUsers.map(userId => ({
+          event_id: createdEventId!,
+          target_type: 'user' as const,
+          user_id: userId,
+          is_mandatory: data.registration_type === 'mandatory',
+        }));
+        await supabase.from('training_event_targets').insert(userTargets);
       }
 
       // Create notifications
@@ -295,17 +295,8 @@ const TrainingEventForm = ({ eventId, onSuccess }: TrainingEventFormProps) => {
           
           targetUserIds = [...new Set(orgUsers?.map(u => u.user_id) || [])];
         } else {
-          // Get users from selected departments
-          if (selectedDepartments.length > 0) {
-            const { data: deptUsers } = await supabase
-              .from('user_roles')
-              .select('user_id')
-              .in('department_id', selectedDepartments);
-            targetUserIds = [...new Set(deptUsers?.map(u => u.user_id) || [])];
-          }
-
-          // Add directly targeted users
-          targetUserIds = [...new Set([...targetUserIds, ...selectedUsers])];
+          // Use directly selected users
+          targetUserIds = [...selectedUsers];
         }
 
         if (targetUserIds.length > 0) {
@@ -329,7 +320,6 @@ const TrainingEventForm = ({ eventId, onSuccess }: TrainingEventFormProps) => {
       queryClient.invalidateQueries({ queryKey: ['training-events'] });
       queryClient.invalidateQueries({ queryKey: ['training-events-calendar'] });
       form.reset();
-      setSelectedDepartments([]);
       setSelectedUsers([]);
       onSuccess?.();
     },
@@ -661,18 +651,67 @@ const TrainingEventForm = ({ eventId, onSuccess }: TrainingEventFormProps) => {
                 </div>
 
                 {/* Target selector for mandatory/invite_only */}
-                {registrationType !== 'open' && organizationId && (
-                  <EventTargetSelector
-                    organizationId={organizationId}
-                    registrationType={registrationType}
-                    selectedDepartments={selectedDepartments}
-                    selectedUsers={selectedUsers}
-                    onDepartmentsChange={setSelectedDepartments}
-                    onUsersChange={setSelectedUsers}
-                  />
+                {registrationType !== 'open' && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">
+                          {registrationType === 'mandatory' ? 'Mandatory Attendees' : 'Invited Users'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Select specific users who {registrationType === 'mandatory' ? 'must attend' : 'can register'}
+                        </p>
+                      </div>
+                      <Button 
+                        type="button" 
+                        variant="outline"
+                        onClick={() => setShowUserSelector(true)}
+                      >
+                        <Users className="h-4 w-4 mr-2" />
+                        Select Users ({selectedUsers.length})
+                      </Button>
+                    </div>
+
+                    {registrationType === 'mandatory' && selectedUsers.length === 0 && (
+                      <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                        <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                        <p className="text-sm text-amber-700 dark:text-amber-400">
+                          Select users who are required to attend this mandatory event
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Selected users display */}
+                    {selectedUserProfiles && selectedUserProfiles.length > 0 && (
+                      <div className="flex flex-wrap gap-2 p-3 bg-muted/50 rounded-lg max-h-32 overflow-y-auto">
+                        {selectedUserProfiles.map(profile => (
+                          <Badge key={profile.id} variant="secondary" className="gap-1">
+                            {profile.full_name}
+                            <button
+                              type="button"
+                              onClick={() => setSelectedUsers(prev => prev.filter(id => id !== profile.id))}
+                              className="hover:bg-destructive/20 rounded-full p-0.5"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>
+
+            {/* User Selection Dialog */}
+            <UserSelectionDialog
+              open={showUserSelector}
+              onOpenChange={setShowUserSelector}
+              selectedUserIds={selectedUsers}
+              onSelectionChange={setSelectedUsers}
+              organizationId={organizationId}
+              title={registrationType === 'mandatory' ? 'Select Mandatory Attendees' : 'Select Invited Users'}
+            />
 
             {/* Video Conferencing Section */}
             <Card className="border-dashed">

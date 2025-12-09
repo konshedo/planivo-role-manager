@@ -1,10 +1,11 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Plus, List, Users, CalendarDays, UserCheck } from 'lucide-react';
+import { Calendar, Plus, List, Users, CalendarDays, UserCheck, UsersRound } from 'lucide-react';
 import TrainingEventList from './TrainingEventList';
 import TrainingEventForm from './TrainingEventForm';
 import TrainingRegistrations from './TrainingRegistrations';
 import TrainingCalendarView from './TrainingCalendarView';
 import AttendanceChecklist from './AttendanceChecklist';
+import GroupManagement from './GroupManagement';
 import { useUserRole } from '@/hooks/useUserRole';
 import { ErrorBoundary } from 'react-error-boundary';
 import { ErrorState } from '@/components/layout/ErrorState';
@@ -63,6 +64,10 @@ const TrainingHub = () => {
                   <UserCheck className="h-4 w-4 mr-2" />
                   Attendance
                 </TabsTrigger>
+                <TabsTrigger value="groups">
+                  <UsersRound className="h-4 w-4 mr-2" />
+                  Groups
+                </TabsTrigger>
               </>
             )}
           </TabsList>
@@ -115,6 +120,10 @@ const TrainingHub = () => {
                     <AttendanceChecklist eventId={selectedEventId} />
                   </div>
                 )}
+              </TabsContent>
+
+              <TabsContent value="groups">
+                <GroupManagement />
               </TabsContent>
             </>
           )}
