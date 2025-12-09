@@ -25,9 +25,13 @@ import { ErrorState } from '@/components/layout/ErrorState';
 interface UnifiedUserHubProps {
   scope?: 'system' | 'workspace' | 'facility' | 'department';
   scopeId?: string; // workspace_id, facility_id, or department_id
+  mode?: 'super_admin' | 'organization_admin' | 'scoped';
+  organizationId?: string;
+  maxUsers?: number | null;
+  currentUserCount?: number;
 }
 
-const UnifiedUserHub = ({ scope, scopeId }: UnifiedUserHubProps) => {
+const UnifiedUserHub = ({ scope, scopeId, mode, organizationId, maxUsers, currentUserCount }: UnifiedUserHubProps) => {
   const [unifiedCreateOpen, setUnifiedCreateOpen] = useState(false);
   const [filterWorkspace, setFilterWorkspace] = useState<string>('all');
   const [editOpen, setEditOpen] = useState(false);

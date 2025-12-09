@@ -374,7 +374,11 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean | null
+          max_facilities: number | null
+          max_users: number | null
+          max_workspaces: number | null
           name: string
+          owner_id: string | null
           updated_at: string
         }
         Insert: {
@@ -383,7 +387,11 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean | null
+          max_facilities?: number | null
+          max_users?: number | null
+          max_workspaces?: number | null
           name: string
+          owner_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -392,10 +400,22 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean | null
+          max_facilities?: number | null
+          max_users?: number | null
+          max_workspaces?: number | null
           name?: string
+          owner_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "organizations_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -1726,6 +1746,7 @@ export type Database = {
     Enums: {
       app_role:
         | "super_admin"
+        | "organization_admin"
         | "general_admin"
         | "workplace_supervisor"
         | "facility_supervisor"
@@ -1870,6 +1891,7 @@ export const Constants = {
     Enums: {
       app_role: [
         "super_admin",
+        "organization_admin",
         "general_admin",
         "workplace_supervisor",
         "facility_supervisor",

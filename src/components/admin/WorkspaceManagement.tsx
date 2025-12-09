@@ -25,16 +25,26 @@ const workspaceSettingsSchema = z.object({
   max_vacation_splits: z.number().min(1, 'Minimum 1 split').max(20, 'Maximum 20 splits'),
 });
 
-const WorkspaceManagement = () => {
+interface WorkspaceManagementProps {
+  organizationId?: string;
+  maxWorkspaces?: number | null;
+  currentWorkspaceCount?: number;
+}
+
+const WorkspaceManagement = ({ organizationId, maxWorkspaces, currentWorkspaceCount }: WorkspaceManagementProps = {}) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
-  const [selectedOrgId, setSelectedOrgId] = useState('');
+  const [selectedOrgId, setSelectedOrgId] = useState(organizationId || '');
   const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false);
   const [manageDepartmentsOpen, setManageDepartmentsOpen] = useState(false);
   const [selectedWorkspace, setSelectedWorkspace] = useState<any>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [maxVacationSplits, setMaxVacationSplits] = useState(6);
   const queryClient = useQueryClient();
+
+  // Check if at limit
+  const isAtLimit = maxWorkspaces !== undefined && maxWorkspaces !== null && 
+                    currentWorkspaceCount !== undefined && currentWorkspaceCount >= maxWorkspaces;
 
   // Real-time subscriptions for live updates
   useRealtimeSubscription({
@@ -60,25 +70,40 @@ const WorkspaceManagement = () => {
   const { data: organizations } = useQuery({
     queryKey: ['organizations'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('organizations')
         .select('*')
         .eq('is_active', true)
         .order('name');
       
+      // If organizationId is provided, only show that org
+      if (organizationId) {
+        query = supabase
+          .from('organizations')
+          .select('*')
+          .eq('id', organizationId);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
   });
 
   const { data: workspaces, isLoading } = useQuery({
-    queryKey: ['workspaces'],
+    queryKey: ['workspaces', organizationId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('workspaces')
         .select('*, organizations(id, name)')
         .order('created_at', { ascending: false });
       
+      // Filter by organization if provided
+      if (organizationId) {
+        query = query.eq('organization_id', organizationId);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },

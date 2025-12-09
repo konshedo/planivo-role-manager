@@ -10,11 +10,12 @@ interface CreateUserRequest {
   email: string;
   password: string;
   full_name: string;
-  role: 'super_admin' | 'general_admin' | 'workplace_supervisor' | 'facility_supervisor' | 'department_head' | 'staff';
+  role: 'super_admin' | 'organization_admin' | 'general_admin' | 'workplace_supervisor' | 'facility_supervisor' | 'department_head' | 'staff';
   workspace_id?: string;
   facility_id?: string;
   department_id?: string;
   specialty_id?: string;
+  organization_id?: string;
   force_password_change?: boolean;
 }
 
@@ -59,12 +60,12 @@ serve(async (req) => {
       );
     }
 
-    // Check if requesting user has permission (super admin, general admin, workplace supervisor, facility supervisor, or department head)
+    // Check if requesting user has permission (super admin, organization admin, general admin, workplace supervisor, facility supervisor, or department head)
     const { data: roles, error: roleError } = await supabaseClient
       .from("user_roles")
       .select("role, department_id, facility_id, workspace_id")
       .eq("user_id", requestingUser.id)
-      .in("role", ["super_admin", "general_admin", "workplace_supervisor", "facility_supervisor", "department_head"]);
+      .in("role", ["super_admin", "organization_admin", "general_admin", "workplace_supervisor", "facility_supervisor", "department_head"]);
 
     if (roleError || !roles || roles.length === 0) {
       console.error("Role check failed:", roleError);
@@ -73,6 +74,9 @@ serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Organization admins can only create users within their organization's scope
+    const isOrganizationAdmin = roles.some(r => r.role === "organization_admin");
 
     // Scope validation based on creator's role
     const isDepartmentHead = roles.some(r => r.role === "department_head");
