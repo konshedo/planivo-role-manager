@@ -7,6 +7,8 @@ export { default as TrainingRegistrations } from '@/components/training/Training
 export { default as TrainingCalendarView } from '@/components/training/TrainingCalendarView';
 export { default as AttendanceChecklist } from '@/components/training/AttendanceChecklist';
 export { default as EventTargetSelector } from '@/components/training/EventTargetSelector';
+export { default as UserSelectionDialog } from '@/components/training/UserSelectionDialog';
+export { default as GroupManagement } from '@/components/training/GroupManagement';
 export { default as JitsiMeetingRoom } from '@/components/training/JitsiMeetingRoom';
 export { default as JitsiServerConfig } from '@/components/training/JitsiServerConfig';
 export { default as MeetingChatPanel } from '@/components/training/MeetingChatPanel';
