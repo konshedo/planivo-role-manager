@@ -761,6 +761,9 @@ export type Database = {
       training_attendance: {
         Row: {
           attendance_status: string | null
+          check_in_method: string | null
+          checked_in_at: string | null
+          checked_in_by: string | null
           created_at: string
           duration_minutes: number | null
           event_id: string
@@ -773,6 +776,9 @@ export type Database = {
         }
         Insert: {
           attendance_status?: string | null
+          check_in_method?: string | null
+          checked_in_at?: string | null
+          checked_in_by?: string | null
           created_at?: string
           duration_minutes?: number | null
           event_id: string
@@ -785,6 +791,9 @@ export type Database = {
         }
         Update: {
           attendance_status?: string | null
+          check_in_method?: string | null
+          checked_in_at?: string | null
+          checked_in_by?: string | null
           created_at?: string
           duration_minutes?: number | null
           event_id?: string
@@ -797,6 +806,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "training_attendance_checked_in_by_fkey"
+            columns: ["checked_in_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "training_attendance_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
@@ -805,6 +821,58 @@ export type Database = {
           },
           {
             foreignKeyName: "training_attendance_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_event_targets: {
+        Row: {
+          created_at: string
+          department_id: string | null
+          event_id: string
+          id: string
+          is_mandatory: boolean | null
+          target_type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          department_id?: string | null
+          event_id: string
+          id?: string
+          is_mandatory?: boolean | null
+          target_type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          department_id?: string | null
+          event_id?: string
+          id?: string
+          is_mandatory?: boolean | null
+          target_type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_event_targets_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_event_targets_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "training_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_event_targets_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -830,7 +898,9 @@ export type Database = {
           max_video_participants: number | null
           online_link: string | null
           organization_id: string | null
+          registration_type: string
           require_lobby: boolean | null
+          responsible_user_id: string | null
           start_datetime: string
           status: Database["public"]["Enums"]["training_event_status"]
           title: string
@@ -853,7 +923,9 @@ export type Database = {
           max_video_participants?: number | null
           online_link?: string | null
           organization_id?: string | null
+          registration_type?: string
           require_lobby?: boolean | null
+          responsible_user_id?: string | null
           start_datetime: string
           status?: Database["public"]["Enums"]["training_event_status"]
           title: string
@@ -876,7 +948,9 @@ export type Database = {
           max_video_participants?: number | null
           online_link?: string | null
           organization_id?: string | null
+          registration_type?: string
           require_lobby?: boolean | null
+          responsible_user_id?: string | null
           start_datetime?: string
           status?: Database["public"]["Enums"]["training_event_status"]
           title?: string
@@ -888,6 +962,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_events_responsible_user_id_fkey"
+            columns: ["responsible_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
