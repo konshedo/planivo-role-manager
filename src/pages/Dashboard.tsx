@@ -15,6 +15,7 @@ import WorkplaceSupervisorDashboard from '@/components/dashboards/WorkplaceSuper
 import FacilitySupervisorDashboard from '@/components/dashboards/FacilitySupervisorDashboard';
 import DepartmentHeadDashboard from '@/components/dashboards/DepartmentHeadDashboard';
 import StaffDashboard from '@/components/dashboards/StaffDashboard';
+import OrganizationAdminDashboard from '@/components/dashboards/OrganizationAdminDashboard';
 
 const Dashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -95,7 +96,7 @@ const Dashboard = () => {
 
   // Get primary role (prioritize higher permissions)
   const getPrimaryRole = () => {
-    const roleHierarchy = ['super_admin', 'general_admin', 'workplace_supervisor', 'facility_supervisor', 'department_head', 'staff'];
+    const roleHierarchy = ['super_admin', 'organization_admin', 'general_admin', 'workplace_supervisor', 'facility_supervisor', 'department_head', 'staff'];
     for (const role of roleHierarchy) {
       if (roles.some(r => r.role === role)) {
         return role;
@@ -112,6 +113,14 @@ const Dashboard = () => {
         <UnifiedLayout>
           <ErrorBoundary fallbackTitle="Super Admin Dashboard Error">
             <SuperAdminDashboard />
+          </ErrorBoundary>
+        </UnifiedLayout>
+      );
+    case 'organization_admin':
+      return (
+        <UnifiedLayout>
+          <ErrorBoundary fallbackTitle="Organization Admin Dashboard Error">
+            <OrganizationAdminDashboard />
           </ErrorBoundary>
         </UnifiedLayout>
       );

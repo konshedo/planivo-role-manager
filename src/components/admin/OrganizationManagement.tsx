@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Building, Trash2, Edit, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Building, Trash2, Edit, ChevronDown, ChevronRight, User, Infinity } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -14,11 +14,18 @@ import { Badge } from '@/components/ui/badge';
 import { z } from 'zod';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
 
 const organizationSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name too long'),
   description: z.string().max(500, 'Description too long').optional(),
 });
+
+interface LimitState {
+  value: number;
+  unlimited: boolean;
+}
 
 const OrganizationManagement = () => {
   const [createOpen, setCreateOpen] = useState(false);
@@ -28,6 +35,15 @@ const OrganizationManagement = () => {
   const [selectedOrg, setSelectedOrg] = useState<any>(null);
   const [expandedOrgs, setExpandedOrgs] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
+
+  // Owner fields
+  const [ownerEmail, setOwnerEmail] = useState('');
+  const [ownerName, setOwnerName] = useState('');
+  
+  // Limit fields
+  const [maxWorkspaces, setMaxWorkspaces] = useState<LimitState>({ value: 5, unlimited: true });
+  const [maxFacilities, setMaxFacilities] = useState<LimitState>({ value: 10, unlimited: true });
+  const [maxUsers, setMaxUsers] = useState<LimitState>({ value: 100, unlimited: true });
 
   // Real-time subscriptions
   useRealtimeSubscription({
@@ -53,6 +69,30 @@ const OrganizationManagement = () => {
     },
   });
 
+  // Fetch owner profiles for organizations
+  const { data: ownerProfiles } = useQuery({
+    queryKey: ['organization-owners', organizations?.map(o => o.owner_id).filter(Boolean)],
+    queryFn: async () => {
+      const ownerIds = organizations?.map(o => o.owner_id).filter(Boolean) || [];
+      if (ownerIds.length === 0) return {};
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', ownerIds);
+      
+      if (error) throw error;
+      
+      // Return as a lookup object
+      const lookup: Record<string, { full_name: string; email: string }> = {};
+      data?.forEach(p => {
+        lookup[p.id] = { full_name: p.full_name, email: p.email };
+      });
+      return lookup;
+    },
+    enabled: !!organizations && organizations.length > 0,
+  });
+
   const { data: workspacesByOrg } = useQuery({
     queryKey: ['workspaces-by-org'],
     queryFn: async () => {
@@ -67,18 +107,50 @@ const OrganizationManagement = () => {
   });
 
   const createMutation = useMutation({
-    mutationFn: async ({ name, description }: { name: string; description?: string }) => {
-      const validated = organizationSchema.parse({ name, description });
+    mutationFn: async (params: { 
+      name: string; 
+      description?: string;
+      ownerEmail?: string;
+      ownerName?: string;
+      maxWorkspaces?: number | null;
+      maxFacilities?: number | null;
+      maxUsers?: number | null;
+    }) => {
+      const validated = organizationSchema.parse({ name: params.name, description: params.description });
       
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
+
+      let ownerId: string | null = null;
+
+      // Create owner user if email provided
+      if (params.ownerEmail && params.ownerName) {
+        const { data: ownerResult, error: ownerError } = await supabase.functions.invoke('create-user', {
+          body: {
+            email: params.ownerEmail,
+            password: '123456',
+            full_name: params.ownerName,
+            role: 'organization_admin',
+            force_password_change: true,
+          },
+        });
+
+        if (ownerError) throw new Error(ownerError.message || 'Failed to create owner');
+        if (ownerResult.error) throw new Error(ownerResult.error);
+        
+        ownerId = ownerResult.user.id;
+      }
 
       const { data, error } = await supabase
         .from('organizations')
         .insert([{ 
           name: validated.name, 
           description: validated.description || null,
-          created_by: user.id 
+          created_by: user.id,
+          owner_id: ownerId,
+          max_workspaces: params.maxWorkspaces,
+          max_facilities: params.maxFacilities,
+          max_users: params.maxUsers,
         }])
         .select()
         .single();
@@ -98,16 +170,26 @@ const OrganizationManagement = () => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, name, description }: { id: string; name: string; description?: string }) => {
-      const validated = organizationSchema.parse({ name, description });
+    mutationFn: async (params: { 
+      id: string; 
+      name: string; 
+      description?: string;
+      maxWorkspaces?: number | null;
+      maxFacilities?: number | null;
+      maxUsers?: number | null;
+    }) => {
+      const validated = organizationSchema.parse({ name: params.name, description: params.description });
       
       const { error } = await supabase
         .from('organizations')
         .update({ 
           name: validated.name, 
-          description: validated.description || null 
+          description: validated.description || null,
+          max_workspaces: params.maxWorkspaces,
+          max_facilities: params.maxFacilities,
+          max_users: params.maxUsers,
         })
-        .eq('id', id);
+        .eq('id', params.id);
 
       if (error) throw error;
     },
@@ -143,12 +225,25 @@ const OrganizationManagement = () => {
   const resetForm = () => {
     setName('');
     setDescription('');
+    setOwnerEmail('');
+    setOwnerName('');
+    setMaxWorkspaces({ value: 5, unlimited: true });
+    setMaxFacilities({ value: 10, unlimited: true });
+    setMaxUsers({ value: 100, unlimited: true });
     setSelectedOrg(null);
   };
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    createMutation.mutate({ name: name.trim(), description: description.trim() });
+    createMutation.mutate({ 
+      name: name.trim(), 
+      description: description.trim(),
+      ownerEmail: ownerEmail.trim() || undefined,
+      ownerName: ownerName.trim() || undefined,
+      maxWorkspaces: maxWorkspaces.unlimited ? null : maxWorkspaces.value,
+      maxFacilities: maxFacilities.unlimited ? null : maxFacilities.value,
+      maxUsers: maxUsers.unlimited ? null : maxUsers.value,
+    });
   };
 
   const handleUpdate = (e: React.FormEvent) => {
@@ -157,7 +252,10 @@ const OrganizationManagement = () => {
     updateMutation.mutate({ 
       id: selectedOrg.id, 
       name: name.trim(), 
-      description: description.trim() 
+      description: description.trim(),
+      maxWorkspaces: maxWorkspaces.unlimited ? null : maxWorkspaces.value,
+      maxFacilities: maxFacilities.unlimited ? null : maxFacilities.value,
+      maxUsers: maxUsers.unlimited ? null : maxUsers.value,
     });
   };
 
@@ -165,6 +263,15 @@ const OrganizationManagement = () => {
     setSelectedOrg(org);
     setName(org.name);
     setDescription(org.description || '');
+    setMaxWorkspaces(org.max_workspaces === null 
+      ? { value: 5, unlimited: true } 
+      : { value: org.max_workspaces, unlimited: false });
+    setMaxFacilities(org.max_facilities === null 
+      ? { value: 10, unlimited: true } 
+      : { value: org.max_facilities, unlimited: false });
+    setMaxUsers(org.max_users === null 
+      ? { value: 100, unlimited: true } 
+      : { value: org.max_users, unlimited: false });
     setEditOpen(true);
   };
 
@@ -182,31 +289,69 @@ const OrganizationManagement = () => {
     return workspacesByOrg?.filter(w => w.organization_id === orgId) || [];
   };
 
+  const formatLimit = (value: number | null) => {
+    return value === null ? '∞' : value.toString();
+  };
+
+  const LimitInput = ({ 
+    label, 
+    state, 
+    onChange 
+  }: { 
+    label: string; 
+    state: LimitState; 
+    onChange: (state: LimitState) => void;
+  }) => (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <div className="flex items-center gap-3">
+        <Input
+          type="number"
+          min={1}
+          value={state.value}
+          onChange={(e) => onChange({ ...state, value: parseInt(e.target.value) || 1 })}
+          disabled={state.unlimited}
+          className="w-24"
+        />
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id={`${label}-unlimited`}
+            checked={state.unlimited}
+            onCheckedChange={(checked) => onChange({ ...state, unlimited: !!checked })}
+          />
+          <Label htmlFor={`${label}-unlimited`} className="text-sm flex items-center gap-1 cursor-pointer">
+            <Infinity className="h-4 w-4" /> Unlimited
+          </Label>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <Card className="border-2">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
             <CardTitle>Organizations</CardTitle>
-            <CardDescription>Manage top-level organizations that contain workspaces</CardDescription>
+            <CardDescription>Manage top-level organizations with owners and resource limits</CardDescription>
           </div>
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
               <Button className="bg-gradient-primary">
                 <Plus className="mr-2 h-4 w-4" />
                 Create Organization
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Organization</DialogTitle>
                 <DialogDescription>
-                  Organizations are the top-level structure containing multiple workspaces
+                  Create an organization with an owner who can manage workspaces, facilities, and users
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreate} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="org-name">Organization Name</Label>
+                  <Label htmlFor="org-name">Organization Name *</Label>
                   <Input
                     id="org-name"
                     placeholder="e.g., Healthcare Group International"
@@ -222,9 +367,71 @@ const OrganizationManagement = () => {
                     placeholder="Brief description of the organization..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    rows={3}
+                    rows={2}
                   />
                 </div>
+
+                <Separator />
+                
+                <div className="space-y-3">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Organization Owner (Optional)
+                  </h4>
+                  <p className="text-sm text-muted-foreground">
+                    Create an admin user who will manage this organization. Password will be "123456".
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="owner-name">Full Name</Label>
+                      <Input
+                        id="owner-name"
+                        placeholder="John Smith"
+                        value={ownerName}
+                        onChange={(e) => setOwnerName(e.target.value)}
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="owner-email">Email</Label>
+                      <Input
+                        id="owner-email"
+                        type="email"
+                        placeholder="john@example.com"
+                        value={ownerEmail}
+                        onChange={(e) => setOwnerEmail(e.target.value)}
+                        autoComplete="off"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <h4 className="font-medium">Resource Limits</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Set maximum resources this organization can create
+                  </p>
+                  <div className="space-y-4">
+                    <LimitInput 
+                      label="Max Workspaces" 
+                      state={maxWorkspaces} 
+                      onChange={setMaxWorkspaces} 
+                    />
+                    <LimitInput 
+                      label="Max Facilities" 
+                      state={maxFacilities} 
+                      onChange={setMaxFacilities} 
+                    />
+                    <LimitInput 
+                      label="Max Users" 
+                      state={maxUsers} 
+                      onChange={setMaxUsers} 
+                    />
+                  </div>
+                </div>
+
                 <Button type="submit" className="w-full" disabled={createMutation.isPending}>
                   {createMutation.isPending ? 'Creating...' : 'Create Organization'}
                 </Button>
@@ -245,6 +452,7 @@ const OrganizationManagement = () => {
             {organizations.map((org) => {
               const orgWorkspaces = getWorkspacesForOrg(org.id);
               const isExpanded = expandedOrgs.has(org.id);
+              const owner = org.owner_id ? ownerProfiles?.[org.owner_id] : null;
               
               return (
                 <Collapsible key={org.id} open={isExpanded} onOpenChange={() => toggleExpanded(org.id)}>
@@ -264,7 +472,7 @@ const OrganizationManagement = () => {
                           <Building className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-semibold">{org.name}</h3>
                             <Badge variant="secondary" className="text-xs">
                               {orgWorkspaces.length} workspace{orgWorkspaces.length !== 1 ? 's' : ''}
@@ -273,9 +481,23 @@ const OrganizationManagement = () => {
                           {org.description && (
                             <p className="text-sm text-muted-foreground">{org.description}</p>
                           )}
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Created {new Date(org.created_at).toLocaleDateString()}
-                          </p>
+                          {owner && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              <User className="h-3 w-3 inline mr-1" />
+                              Owner: {owner.full_name} ({owner.email})
+                            </p>
+                          )}
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            <Badge variant="outline" className="text-xs">
+                              Workspaces: {formatLimit(org.max_workspaces)}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              Facilities: {formatLimit(org.max_facilities)}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              Users: {formatLimit(org.max_users)}
+                            </Badge>
+                          </div>
                         </div>
                       </div>
                       <div className="flex gap-2">
@@ -334,17 +556,17 @@ const OrganizationManagement = () => {
       </CardContent>
 
       {/* Edit Organization Dialog */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
+      <Dialog open={editOpen} onOpenChange={(open) => { setEditOpen(open); if (!open) resetForm(); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Organization</DialogTitle>
             <DialogDescription>
-              Update organization details
+              Update organization details and resource limits
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleUpdate} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-org-name">Organization Name</Label>
+              <Label htmlFor="edit-org-name">Organization Name *</Label>
               <Input
                 id="edit-org-name"
                 value={name}
@@ -358,9 +580,33 @@ const OrganizationManagement = () => {
                 id="edit-org-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                rows={3}
+                rows={2}
               />
             </div>
+
+            <Separator />
+
+            <div className="space-y-3">
+              <h4 className="font-medium">Resource Limits</h4>
+              <div className="space-y-4">
+                <LimitInput 
+                  label="Max Workspaces" 
+                  state={maxWorkspaces} 
+                  onChange={setMaxWorkspaces} 
+                />
+                <LimitInput 
+                  label="Max Facilities" 
+                  state={maxFacilities} 
+                  onChange={setMaxFacilities} 
+                />
+                <LimitInput 
+                  label="Max Users" 
+                  state={maxUsers} 
+                  onChange={setMaxUsers} 
+                />
+              </div>
+            </div>
+
             <Button type="submit" className="w-full" disabled={updateMutation.isPending}>
               {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
             </Button>
