@@ -5,7 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Building, Trash2, Edit, ChevronDown, ChevronRight, User, Infinity } from 'lucide-react';
+import { Plus, Building, Trash2, Edit, ChevronDown, ChevronRight, User, Infinity, UserPlus } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -36,9 +38,15 @@ const OrganizationManagement = () => {
   const [expandedOrgs, setExpandedOrgs] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
 
-  // Owner fields
+  // Owner fields (for create)
   const [ownerEmail, setOwnerEmail] = useState('');
   const [ownerName, setOwnerName] = useState('');
+  
+  // Edit owner fields
+  const [ownerMode, setOwnerMode] = useState<'keep' | 'select' | 'create'>('keep');
+  const [editOwnerEmail, setEditOwnerEmail] = useState('');
+  const [editOwnerName, setEditOwnerName] = useState('');
+  const [selectedOwnerId, setSelectedOwnerId] = useState<string | null>(null);
   
   // Limit fields
   const [maxWorkspaces, setMaxWorkspaces] = useState<LimitState>({ value: 5, unlimited: true });
@@ -103,6 +111,30 @@ const OrganizationManagement = () => {
       
       if (error) throw error;
       return data;
+    },
+  });
+
+  // Fetch existing organization admins for selection
+  const { data: existingOrgAdmins } = useQuery({
+    queryKey: ['organization-admins'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'organization_admin');
+      
+      if (error) throw error;
+      
+      if (!data || data.length === 0) return [];
+      
+      const userIds = data.map(r => r.user_id);
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', userIds);
+      
+      if (profilesError) throw profilesError;
+      return profiles || [];
     },
   });
 
@@ -177,24 +209,58 @@ const OrganizationManagement = () => {
       maxWorkspaces?: number | null;
       maxFacilities?: number | null;
       maxUsers?: number | null;
+      ownerMode: 'keep' | 'select' | 'create';
+      selectedOwnerId?: string | null;
+      newOwnerEmail?: string;
+      newOwnerName?: string;
     }) => {
       const validated = organizationSchema.parse({ name: params.name, description: params.description });
       
+      let ownerId: string | null | undefined = undefined; // undefined = no change
+      
+      if (params.ownerMode === 'select' && params.selectedOwnerId) {
+        ownerId = params.selectedOwnerId;
+      } else if (params.ownerMode === 'create' && params.newOwnerEmail && params.newOwnerName) {
+        // Create new user via edge function
+        const { data: ownerResult, error: ownerError } = await supabase.functions.invoke('create-user', {
+          body: {
+            email: params.newOwnerEmail,
+            password: '123456',
+            full_name: params.newOwnerName,
+            role: 'organization_admin',
+            force_password_change: true,
+          },
+        });
+
+        if (ownerError) throw new Error(ownerError.message || 'Failed to create owner');
+        if (ownerResult.error) throw new Error(ownerResult.error);
+        
+        ownerId = ownerResult.user.id;
+      }
+
+      const updateData: any = { 
+        name: validated.name, 
+        description: validated.description || null,
+        max_workspaces: params.maxWorkspaces,
+        max_facilities: params.maxFacilities,
+        max_users: params.maxUsers,
+      };
+      
+      // Only update owner_id if changed
+      if (ownerId !== undefined) {
+        updateData.owner_id = ownerId;
+      }
+      
       const { error } = await supabase
         .from('organizations')
-        .update({ 
-          name: validated.name, 
-          description: validated.description || null,
-          max_workspaces: params.maxWorkspaces,
-          max_facilities: params.maxFacilities,
-          max_users: params.maxUsers,
-        })
+        .update(updateData)
         .eq('id', params.id);
 
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['organizations'] });
+      queryClient.invalidateQueries({ queryKey: ['organization-admins'] });
       toast.success('Organization updated successfully');
       resetForm();
       setEditOpen(false);
@@ -227,6 +293,10 @@ const OrganizationManagement = () => {
     setDescription('');
     setOwnerEmail('');
     setOwnerName('');
+    setEditOwnerEmail('');
+    setEditOwnerName('');
+    setOwnerMode('keep');
+    setSelectedOwnerId(null);
     setMaxWorkspaces({ value: 5, unlimited: true });
     setMaxFacilities({ value: 10, unlimited: true });
     setMaxUsers({ value: 100, unlimited: true });
@@ -249,6 +319,13 @@ const OrganizationManagement = () => {
   const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOrg) return;
+    
+    // Validate create mode has required fields
+    if (ownerMode === 'create' && (!editOwnerEmail.trim() || !editOwnerName.trim())) {
+      toast.error('Please provide both name and email for the new owner');
+      return;
+    }
+    
     updateMutation.mutate({ 
       id: selectedOrg.id, 
       name: name.trim(), 
@@ -256,6 +333,10 @@ const OrganizationManagement = () => {
       maxWorkspaces: maxWorkspaces.unlimited ? null : maxWorkspaces.value,
       maxFacilities: maxFacilities.unlimited ? null : maxFacilities.value,
       maxUsers: maxUsers.unlimited ? null : maxUsers.value,
+      ownerMode,
+      selectedOwnerId: selectedOwnerId,
+      newOwnerEmail: editOwnerEmail.trim(),
+      newOwnerName: editOwnerName.trim(),
     });
   };
 
@@ -272,6 +353,11 @@ const OrganizationManagement = () => {
     setMaxUsers(org.max_users === null 
       ? { value: 100, unlimited: true } 
       : { value: org.max_users, unlimited: false });
+    // Set owner mode based on current owner
+    setOwnerMode(org.owner_id ? 'keep' : 'create');
+    setSelectedOwnerId(org.owner_id || null);
+    setEditOwnerEmail('');
+    setEditOwnerName('');
     setEditOpen(true);
   };
 
@@ -582,6 +668,100 @@ const OrganizationManagement = () => {
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
               />
+            </div>
+
+            <Separator />
+
+            <div className="space-y-3">
+              <h4 className="font-medium flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Organization Owner
+              </h4>
+              
+              {selectedOrg?.owner_id && ownerProfiles?.[selectedOrg.owner_id] && (
+                <p className="text-sm text-muted-foreground">
+                  Current Owner: <span className="font-medium">{ownerProfiles[selectedOrg.owner_id].full_name}</span> ({ownerProfiles[selectedOrg.owner_id].email})
+                </p>
+              )}
+
+              <RadioGroup 
+                value={ownerMode} 
+                onValueChange={(value) => setOwnerMode(value as 'keep' | 'select' | 'create')}
+                className="space-y-2"
+              >
+                {selectedOrg?.owner_id && (
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="keep" id="owner-keep" />
+                    <Label htmlFor="owner-keep" className="cursor-pointer">Keep Current Owner</Label>
+                  </div>
+                )}
+                
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="select" id="owner-select" />
+                  <Label htmlFor="owner-select" className="cursor-pointer">Select Existing Admin</Label>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="create" id="owner-create" />
+                  <Label htmlFor="owner-create" className="cursor-pointer">Create New Owner</Label>
+                </div>
+              </RadioGroup>
+
+              {ownerMode === 'select' && (
+                <div className="space-y-2 pl-6">
+                  <Label>Select Organization Admin</Label>
+                  <Select 
+                    value={selectedOwnerId || ''} 
+                    onValueChange={(value) => setSelectedOwnerId(value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select an admin..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {existingOrgAdmins && existingOrgAdmins.length > 0 ? (
+                        existingOrgAdmins.map((admin) => (
+                          <SelectItem key={admin.id} value={admin.id}>
+                            {admin.full_name} ({admin.email})
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="" disabled>No organization admins available</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {ownerMode === 'create' && (
+                <div className="space-y-3 pl-6">
+                  <p className="text-sm text-muted-foreground">
+                    Create a new admin user. Password will be "123456".
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-owner-name">Full Name *</Label>
+                      <Input
+                        id="edit-owner-name"
+                        placeholder="John Smith"
+                        value={editOwnerName}
+                        onChange={(e) => setEditOwnerName(e.target.value)}
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-owner-email">Email *</Label>
+                      <Input
+                        id="edit-owner-email"
+                        type="email"
+                        placeholder="john@example.com"
+                        value={editOwnerEmail}
+                        onChange={(e) => setEditOwnerEmail(e.target.value)}
+                        autoComplete="off"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <Separator />
